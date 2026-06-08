@@ -16,7 +16,7 @@ function App() {
           <img src={viteLogo} className="vite" alt="Vite logo" />
         </div>
         <div>
-          <h1>Tournament App Check</h1>
+          <h1>Tournament App Check 222222222</h1>
           <p>Organize and manage your tournaments with ease</p>
         </div>
         <button
