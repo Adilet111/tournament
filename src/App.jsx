@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
 import { LangProvider, useLang } from './LangContext';
+import { SessionProvider } from './SessionContext';
 import { Nav, Hero, Organizer, FinalCTA, Footer } from './components/sections';
 import { Browse, Participate } from './components/interactive';
 import { useTweaks, TweaksPanel, TweakSection, TweakRadio, TweakColor, TweakSelect } from './components/TweaksPanel';
 import { Btn, SportTag } from './components/primitives';
+import { AuthPage } from './components/auth';
+import { ProfileModal } from './components/profile';
 
 const TWEAK_DEFAULTS = {
   heroStyle: "split",
@@ -89,6 +92,8 @@ function RegisterModal({ comp, onClose }) {
 function RallyApp() {
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
   const [reg, setReg] = useState(null);
+  const [authMode, setAuthMode] = useState(null); // "signin" | "signup" | null
+  const [profileOpen, setProfileOpen] = useState(false);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -100,16 +105,18 @@ function RallyApp() {
 
   return (
     <div id="top">
-      <Nav />
+      <Nav onAuth={setAuthMode} onCreateProfile={() => setProfileOpen(true)} />
       <main>
         <Hero style={t.heroStyle} />
         <Browse onRegister={setReg} />
         <Participate onRegister={setReg} />
         <Organizer />
-        <FinalCTA />
+        <FinalCTA onAuth={setAuthMode} />
       </main>
       <Footer />
       {reg && <RegisterModal comp={reg} onClose={() => setReg(null)} />}
+      {authMode && <AuthPage mode={authMode} onClose={() => setAuthMode(null)} />}
+      {profileOpen && <ProfileModal onClose={() => setProfileOpen(false)} />}
 
       <TweaksPanel>
         <TweakSection label="Hero" />
@@ -133,7 +140,9 @@ function RallyApp() {
 export default function App() {
   return (
     <LangProvider>
-      <RallyApp />
+      <SessionProvider>
+        <RallyApp />
+      </SessionProvider>
     </LangProvider>
   );
 }

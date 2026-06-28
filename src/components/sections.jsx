@@ -1,11 +1,79 @@
-import { useState, useEffect } from 'react';
-import { SPORTS, LOCATIONS } from '../data';
+import { useState, useEffect, useRef } from 'react';
+import { SPORTS, LOCATIONS, sportLabel, categoryLabel } from '../data';
 import { useLang } from '../LangContext';
+import { useSession } from '../SessionContext';
 import { Logo, Btn, Arrow, SportTag, Pill, LangSwitcher, useReveal, scrollToId } from './primitives';
 
-/* ---- Nav ---- */
-export function Nav() {
+/* ---- signed-in user menu ---- */
+function initials(name) {
+  return (name || '')
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((w) => w[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase() || 'U';
+}
+
+function UserMenu({ onCreateProfile }) {
   const { t } = useLang();
+  const { user, profiles, signOut } = useSession();
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    const onDoc = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, []);
+  const name = user?.name || t.account.defaultName;
+  return (
+    <div className="relative" ref={ref}>
+      <button onClick={() => setOpen((o) => !o)}
+        className="flex items-center gap-2 rounded-full border border-ink-100 py-1 pl-1 pr-3 transition-colors hover:border-ink-300">
+        {user?.picture
+          ? <img src={user.picture} alt="" className="h-8 w-8 rounded-full object-cover" referrerPolicy="no-referrer" />
+          : <span className="grid h-8 w-8 place-items-center rounded-full bg-accent text-[13px] font-700 text-white">{initials(name)}</span>}
+        <span className="text-[14px] font-600 text-ink-900">{name.split(' ')[0]}</span>
+      </button>
+      {open && (
+        <div className="absolute right-0 mt-2 w-64 overflow-hidden rounded-2xl border border-ink-100 bg-white shadow-xl">
+          <div className="border-b border-ink-100 px-4 py-3">
+            <div className="text-[14px] font-600 text-ink-900">{name}</div>
+            {user?.email && <div className="truncate text-[12.5px] text-ink-500">{user.email}</div>}
+          </div>
+          {profiles.length > 0 && (
+            <div className="border-b border-ink-100 px-4 py-2.5">
+              <div className="font-mono text-[10.5px] uppercase tracking-wide text-ink-300">{t.account.yourProfiles}</div>
+              <ul className="mt-1.5 space-y-1">
+                {profiles.map((p) => (
+                  <li key={p.id} className="flex items-center justify-between text-[13.5px] text-ink-700">
+                    <span>{t.data.sports[p.sport] ?? sportLabel(p.sport)}</span>
+                    <span className="text-[12px] text-ink-400">{t.data.categories[p.category] ?? categoryLabel(p.category)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <div className="p-2">
+            <button onClick={() => { setOpen(false); onCreateProfile(); }}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[14px] font-600 text-ink-900 hover:bg-ink-50">
+              <span className="text-accent">＋</span> {t.account.createProfile}
+            </button>
+            <button onClick={() => { setOpen(false); signOut(); }}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[14px] font-500 text-ink-500 hover:bg-ink-50">
+              {t.account.signOut}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ---- Nav ---- */
+export function Nav({ onAuth, onCreateProfile }) {
+  const { t } = useLang();
+  const { isAuthed, signOut } = useSession();
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
   useEffect(() => {
@@ -32,8 +100,14 @@ export function Nav() {
         </nav>
         <div className="hidden items-center gap-2 md:flex">
           <LangSwitcher />
-          <Btn variant="ghost" size="sm">{t.nav.signIn}</Btn>
-          <Btn variant="primary" size="sm" onClick={() => scrollToId("register")}>{t.nav.register} <Arrow /></Btn>
+          {isAuthed ? (
+            <UserMenu onCreateProfile={onCreateProfile} />
+          ) : (
+            <>
+              <Btn variant="ghost" size="sm" onClick={() => onAuth("signin")}>{t.nav.signIn}</Btn>
+              <Btn variant="primary" size="sm" onClick={() => onAuth("signup")}>{t.nav.register} <Arrow /></Btn>
+            </>
+          )}
         </div>
         <button className="grid h-10 w-10 place-items-center rounded-lg hover:bg-ink-50 md:hidden" onClick={() => setOpen(!open)} aria-label="Menu">
           <div className="space-y-1.5">
@@ -51,8 +125,17 @@ export function Nav() {
             ))}
             <div className="mt-2 flex items-center gap-2">
               <LangSwitcher />
-              <Btn variant="outline" size="sm" className="flex-1">{t.nav.signIn}</Btn>
-              <Btn variant="primary" size="sm" className="flex-1" onClick={() => { scrollToId("register"); setOpen(false); }}>{t.nav.register}</Btn>
+              {isAuthed ? (
+                <>
+                  <Btn variant="primary" size="sm" className="flex-1" onClick={() => { onCreateProfile(); setOpen(false); }}>{t.account.createProfile}</Btn>
+                  <Btn variant="outline" size="sm" className="flex-1" onClick={() => { signOut(); setOpen(false); }}>{t.account.signOut}</Btn>
+                </>
+              ) : (
+                <>
+                  <Btn variant="outline" size="sm" className="flex-1" onClick={() => { onAuth("signin"); setOpen(false); }}>{t.nav.signIn}</Btn>
+                  <Btn variant="primary" size="sm" className="flex-1" onClick={() => { onAuth("signup"); setOpen(false); }}>{t.nav.register}</Btn>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -248,7 +331,7 @@ export function Organizer() {
 }
 
 /* ---- FinalCTA ---- */
-export function FinalCTA() {
+export function FinalCTA({ onAuth }) {
   const { t } = useLang();
   const f = t.finalCta;
   return (
@@ -262,7 +345,7 @@ export function FinalCTA() {
           </h2>
           <p className="mx-auto mt-5 max-w-lg text-[18px] leading-relaxed text-white/85">{f.body}</p>
           <div className="mt-9 flex flex-wrap justify-center gap-3">
-            <Btn variant="white" size="lg" onClick={() => scrollToId("participate")}>{f.competeCta} <Arrow /></Btn>
+            <Btn variant="white" size="lg" onClick={() => onAuth("signup")}>{f.competeCta} <Arrow /></Btn>
             <Btn size="lg" className="border border-white/40 bg-white/0 text-white hover:bg-white/10" onClick={() => scrollToId("organize")}>{f.organizeCta}</Btn>
           </div>
         </div>
