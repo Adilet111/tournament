@@ -27,7 +27,7 @@ async function post(path, body, token) {
   return data;
 }
 
-/* POST /competitions — create a competition (admin only). */
-export function createCompetition(payload, token) {
-  return post('/competitions', payload, token);
+/* POST /tournaments — create a tournament (admin only). */
+export function createTournament(payload, token) {
+  return post('/tournaments', payload, token);
 }

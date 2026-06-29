@@ -4,7 +4,7 @@ import { SPORTS, LOCATIONS, CATEGORIES } from '../data';
 import { useLang } from '../LangContext';
 import { useSession } from '../SessionContext';
 import { getAuthToken } from '../lib/auth';
-import { createCompetition } from '../lib/api';
+import { createTournament } from '../lib/api';
 import { owned, REGISTRATIONS, SPONSORS, PROMOTIONS } from './adminData';
 import { Card, Btn, StatusDot, Avatar, Svg, Icon, fmt } from './AdminShell';
 
@@ -367,15 +367,26 @@ export function CreateCompetition({ setView }) {
     setSubmitting(true);
     setError(null);
     const [minRating, maxRating] = ratingRange(f.cats);
+    const city = cityName(f.location);
+    const entryFee = Number(f.price) || 0;
+    const capacity = Number(f.capacity);
     try {
-      await createCompetition({
+      await createTournament({
         sportId: f.sport,
         title: f.title.trim(),
-        type: Number(f.price) > 0 ? 'paid' : 'free',
-        city: cityName(f.location),
-        capacity: Number(f.capacity),
+        type: entryFee > 0 ? 'paid' : 'free',
+        city,
+        capacity,
         minRating,
         maxRating,
+        startsAt: f.date ? new Date(f.date).toISOString() : new Date().toISOString(),
+        entryFee,
+        // Fields without a form input yet — reasonable placeholders for now:
+        description: 'Single elimination tournament',
+        location: `${city} venue`,
+        prizePool: 0,
+        currency: 'KZT',
+        bracketInfo: `${capacity}-player single elimination`,
       }, getAuthToken(session));
       setView('competitions');
     } catch (e) {
