@@ -1,6 +1,6 @@
 /* Rally Admin — dashboard views. */
 import { useState, useEffect } from 'react';
-import { SPORTS, LOCATIONS, CATEGORIES } from '../data';
+import { LOCATIONS, CATEGORIES } from '../data';
 import { useLang } from '../LangContext';
 import { useSession } from '../SessionContext';
 import { getAuthToken } from '../lib/auth';
@@ -451,6 +451,8 @@ export function CreateCompetition({ setView }) {
   const [f, setF] = useState({ title: '', sport: '', location: '', date: '', price: '', capacity: '', cats: [] });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  const [apiSports, setApiSports] = useState([]);
+  useEffect(() => { listSports().then((d) => setApiSports(Array.isArray(d) ? d : [])).catch(() => {}); }, []);
   const toggleCat = (id) => setF((s) => ({ ...s, cats: s.cats.includes(id) ? s.cats.filter((x) => x !== id) : [...s.cats, id] }));
   const valid = f.title.trim() && f.sport && f.location && f.date && f.capacity;
 
@@ -508,7 +510,7 @@ export function CreateCompetition({ setView }) {
               <span className={lbl}>{cr.sportLbl}</span>
               <select value={f.sport} onChange={(e) => setF({ ...f, sport: e.target.value })} className={field}>
                 <option value="">{cr.selectSport}</option>
-                {SPORTS.map((s) => <option key={s.id} value={s.id}>{t.data.sports[s.id] ?? s.label}</option>)}
+                {apiSports.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </div>
             <div>
