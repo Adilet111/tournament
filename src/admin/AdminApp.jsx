@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useLang } from '../LangContext';
 import { Sidebar, Topbar } from './AdminShell';
-import { Overview, Competitions, Registrations, Sponsors, Promotions, CreateCompetition } from './AdminViews';
+import { Overview, Competitions, Registrations, Sports, Sponsors, Promotions, CreateCompetition } from './AdminViews';
 import { SPONSORS } from './adminData';
 
 export function AdminApp({ onExit }) {
@@ -15,6 +15,7 @@ export function AdminApp({ onExit }) {
     { id: 'overview', label: m.nav.overview, icon: 'grid' },
     { id: 'competitions', label: m.nav.competitions, icon: 'trophy' },
     { id: 'registrations', label: m.nav.registrations, icon: 'users' },
+    { id: 'sports', label: m.nav.sports, icon: 'ball' },
     { id: 'sponsors', label: m.nav.sponsors, icon: 'handshake', badge: pendingSponsors || null },
     { id: 'promotions', label: m.nav.promotions, icon: 'mega' },
   ];
@@ -23,6 +24,7 @@ export function AdminApp({ onExit }) {
     overview: [m.nav.overview, m.meta.overviewSub],
     competitions: [m.nav.competitions, m.meta.competitionsSub],
     registrations: [m.nav.registrations, m.meta.registrationsSub],
+    sports: [m.nav.sports, m.meta.sportsSub],
     sponsors: [m.nav.sponsors, m.meta.sponsorsSub],
     promotions: [m.nav.promotions, m.meta.promotionsSub],
     create: [m.meta.create, m.meta.createSub],
@@ -32,6 +34,7 @@ export function AdminApp({ onExit }) {
   let Body;
   if (view === 'competitions') Body = <Competitions setView={setView} />;
   else if (view === 'registrations') Body = <Registrations />;
+  else if (view === 'sports') Body = <Sports />;
   else if (view === 'sponsors') Body = <Sponsors />;
   else if (view === 'promotions') Body = <Promotions />;
   else if (view === 'create') Body = <CreateCompetition setView={setView} />;

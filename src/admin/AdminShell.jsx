@@ -16,6 +16,7 @@ export const Icon = {
   bell: 'M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0',
   search: 'M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM21 21l-4.3-4.3',
   dots: 'M5 12h.01M12 12h.01M19 12h.01',
+  ball: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM3.5 9h17M3.5 15h17M12 3c-3 2.5-3 15.5 0 18M12 3c3 2.5 3 15.5 0 18',
 };
 
 export function Svg({ d, className = 'h-[18px] w-[18px]', strokeWidth = 1.7 }) {

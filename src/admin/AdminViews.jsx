@@ -1,10 +1,10 @@
 /* Rally Admin — dashboard views. */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { SPORTS, LOCATIONS, CATEGORIES } from '../data';
 import { useLang } from '../LangContext';
 import { useSession } from '../SessionContext';
 import { getAuthToken } from '../lib/auth';
-import { createTournament } from '../lib/api';
+import { createTournament, listSports, createSport } from '../lib/api';
 import { owned, REGISTRATIONS, SPONSORS, PROMOTIONS } from './adminData';
 import { Card, Btn, StatusDot, Avatar, Svg, Icon, fmt } from './AdminShell';
 
@@ -345,6 +345,98 @@ export function Promotions() {
               </div>
             );
           })}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+/* ============================================================== SPORTS === */
+export function Sports() {
+  const { session } = useSession();
+  const [list, setList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(null);
+  const [name, setName] = useState('');
+  const [adding, setAdding] = useState(false);
+  const [addError, setAddError] = useState(null);
+
+  useEffect(() => {
+    listSports()
+      .then((data) => setList(Array.isArray(data) ? data : []))
+      .catch((e) => setFetchError(e.message))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const trimmed = name.trim();
+  const dupe = trimmed && list.some((s) => s.name.toLowerCase() === trimmed.toLowerCase());
+  const valid = trimmed && !dupe;
+
+  const add = async () => {
+    if (!valid || adding) return;
+    setAdding(true);
+    setAddError(null);
+    try {
+      const slug = trimmed.toLowerCase().replace(/\s+/g, '-');
+      const created = await createSport({ name: trimmed, slug }, getAuthToken(session));
+      setList((l) => [...l, created]);
+      setName('');
+    } catch (e) {
+      setAddError(e.message);
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  const field = 'w-full rounded-xl border border-ink-200 bg-white px-3.5 py-2.5 text-[15px] text-ink-900 outline-none transition-colors focus:border-accent placeholder:text-ink-300';
+
+  return (
+    <div className="space-y-5">
+      <Card className="p-5 lg:p-6">
+        <h3 className="font-display text-[16px] font-700 text-ink-900">Add a sport</h3>
+        <p className="mt-0.5 text-[13.5px] text-ink-500">New sports become available when creating competitions.</p>
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-start">
+          <div className="flex-1">
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') add(); }}
+              placeholder="e.g. Volleyball"
+              className={field + (dupe ? ' border-red-300 focus:border-red-400' : '')} />
+            {dupe && <div className="mt-1.5 text-[12.5px] font-500 text-red-500">"{trimmed}" already exists.</div>}
+            {addError && <div className="mt-1.5 text-[12.5px] font-500 text-red-500">{addError}</div>}
+          </div>
+          <Btn variant="dark" size="md" onClick={add} disabled={!valid || adding}>
+            <Svg d={Icon.plus} className="h-4 w-4" /> {adding ? 'Adding…' : 'Add sport'}
+          </Btn>
+        </div>
+      </Card>
+
+      <Card className="overflow-hidden">
+        <div className="flex items-center justify-between px-6 py-4">
+          <h3 className="font-display text-[17px] font-700 text-ink-900">All sports</h3>
+          <span className="rounded-full bg-ink-50 px-3 py-1 text-[13px] font-600 text-ink-700">{list.length}</span>
+        </div>
+        <div className="grid grid-cols-[auto_1fr_1fr] gap-4 border-y border-ink-100 px-6 py-3 font-mono text-[11px] uppercase tracking-wide text-ink-400">
+          <span className="w-8">#</span><span>Sport</span><span>Slug</span>
+        </div>
+        <div className="divide-y divide-ink-100">
+          {loading && (
+            <div className="px-6 py-5 text-[14px] text-ink-400">Loading…</div>
+          )}
+          {fetchError && (
+            <div className="px-6 py-5 text-[13.5px] text-red-500">{fetchError}</div>
+          )}
+          {!loading && !fetchError && list.length === 0 && (
+            <div className="px-6 py-5 text-[14px] text-ink-400">No sports yet.</div>
+          )}
+          {list.map((s, i) => (
+            <div key={s.slug ?? s.name} className="grid grid-cols-[auto_1fr_1fr] items-center gap-4 px-6 py-3.5">
+              <span className="w-8 font-mono text-[13px] text-ink-400">{String(i + 1).padStart(2, '0')}</span>
+              <span className="text-[15px] font-600 text-ink-900">{s.name}</span>
+              <span className="font-mono text-[13px] text-ink-400">{s.slug}</span>
+            </div>
+          ))}
         </div>
       </Card>
     </div>
