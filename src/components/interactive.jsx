@@ -1,7 +1,67 @@
 import { useState, useEffect, useMemo } from 'react';
-import { SPORTS, LOCATIONS, WINDOWS, CATEGORIES, COMPETITIONS } from '../data';
+import { SPORTS, LOCATIONS, WINDOWS, CATEGORIES } from '../data';
+import { listTournaments, listSports } from '../lib/api';
 import { useLang } from '../LangContext';
 import { Btn, Arrow, Pill, SportTag, useReveal } from './primitives';
+
+/* ---- normalize API tournament into the shape the UI expects ---- */
+const computeWindow = (startsAt) => {
+  if (!startsAt) return 'later';
+  const diff = (new Date(startsAt) - Date.now()) / 86400000;
+  if (diff <= 7) return 'week';
+  if (diff <= 30) return 'month';
+  return 'later';
+};
+
+const computeCats = (min, max) => {
+  const cats = [];
+  if (min === 0 && max >= 3000) cats.push('open');
+  if (min < 1200) cats.push('amateur');
+  if (min < 1800 && max > 1200) cats.push('intermediate');
+  if (max > 1800) cats.push('pro');
+  return cats.length ? cats : ['open'];
+};
+
+const normalizeT = (t, slugMap) => ({
+  id: t.id,
+  title: t.title,
+  sport: slugMap[t.sportId] || '',
+  location: (t.city || '').toLowerCase(),
+  window: computeWindow(t.startsAt),
+  date: t.startsAt ? new Date(t.startsAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—',
+  price: t.entryFee ?? 0,
+  spots: t.capacity ?? 0,
+  cats: computeCats(t.minRating ?? 0, t.maxRating ?? 3000),
+  distance: '',
+  currency: t.currency || 'KZT',
+});
+
+/* ---- shared fetch — one request, both Browse and Participate reuse it ---- */
+let _cache = null;
+let _promise = null;
+
+function useTournaments() {
+  const [tournaments, setTournaments] = useState(_cache || []);
+  const [loading, setLoading] = useState(!_cache);
+
+  useEffect(() => {
+    if (_cache) { setTournaments(_cache); setLoading(false); return; }
+    if (!_promise) {
+      _promise = Promise.all([listTournaments(), listSports()])
+        .then(([ts, ss]) => {
+          const slugMap = Object.fromEntries(
+            (Array.isArray(ss) ? ss : []).map((s) => [s.id, s.slug || s.name.toLowerCase()])
+          );
+          _cache = (Array.isArray(ts) ? ts : []).map((t) => normalizeT(t, slugMap));
+          return _cache;
+        })
+        .catch(() => { _promise = null; return []; });
+    }
+    _promise.then((data) => { setTournaments(data); setLoading(false); });
+  }, []);
+
+  return { tournaments, loading };
+}
 
 /* ---- CompetitionCard ---- */
 function CompetitionCard({ c, onRegister }) {
@@ -61,6 +121,7 @@ export function Browse({ onRegister }) {
   const { t } = useLang();
   const b = t.browse;
   const ref = useReveal();
+  const { tournaments, loading } = useTournaments();
   const [sport, setSport] = useState("");
   const [location, setLocation] = useState("");
   const [win, setWin] = useState("");
@@ -78,12 +139,12 @@ export function Browse({ onRegister }) {
     return () => window.removeEventListener("rally:filter", onFilter);
   }, []);
 
-  const results = useMemo(() => COMPETITIONS.filter((c) =>
+  const results = useMemo(() => tournaments.filter((c) =>
     (!sport || c.sport === sport) &&
     (!location || c.location === location) &&
     (!win || c.window === win) &&
     (!cat || c.cats.includes(cat))
-  ), [sport, location, win, cat]);
+  ), [tournaments, sport, location, win, cat]);
 
   const active = sport || location || win || cat;
   const reset = () => { setSport(""); setLocation(""); setWin(""); setCat(""); };
@@ -141,13 +202,17 @@ export function Browse({ onRegister }) {
         </div>
 
         <div className="reveal mt-7 flex items-center justify-between">
-          <p className="text-[14.5px] text-ink-500">{b.foundFn(results.length)}</p>
+          <p className="text-[14.5px] text-ink-500">{loading ? '…' : b.foundFn(results.length)}</p>
           {active && (
             <button onClick={reset} className="text-[14px] font-500 text-accent hover:underline">{b.clearFilters}</button>
           )}
         </div>
 
-        {results.length > 0 ? (
+        {loading ? (
+          <div className="reveal mt-5 grid place-items-center rounded-2xl border border-dashed border-ink-200 bg-white py-20">
+            <p className="text-[15px] text-ink-400">Loading tournaments…</p>
+          </div>
+        ) : results.length > 0 ? (
           <div className="reveal mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {results.map((c) => <CompetitionCard key={c.id} c={c} onRegister={onRegister} />)}
           </div>
@@ -175,16 +240,17 @@ export function Participate({ onRegister }) {
     list: [SPORTS, LOCATIONS, WINDOWS, CATEGORIES][i],
   }));
 
+  const { tournaments } = useTournaments();
   const [step, setStep] = useState(0);
   const [sel, setSel] = useState({ sport: "", location: "", window: "", category: "" });
   const done = step >= STEPS.length;
 
-  const matches = useMemo(() => COMPETITIONS.filter((c) =>
+  const matches = useMemo(() => tournaments.filter((c) =>
     (!sel.sport    || c.sport === sel.sport) &&
     (!sel.location || c.location === sel.location) &&
     (!sel.window   || c.window === sel.window) &&
     (!sel.category || c.cats.includes(sel.category))
-  ), [sel]);
+  ), [tournaments, sel]);
 
   const pick = (key, val) => {
     setSel((s) => ({ ...s, [key]: val }));
