@@ -89,6 +89,10 @@ function useReveal() {
   return ref;
 }
 
+function goRegister(mode) {
+  window.location.href = "Register.html" + (mode === "signin" ? "#signin" : "");
+}
+
 function scrollToId(id) {
   const el = document.getElementById(id);
   if (el) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 76, behavior: "smooth" });
@@ -122,8 +126,8 @@ function Nav() {
           ))}
         </nav>
         <div className="hidden items-center gap-2 md:flex">
-          <Btn variant="ghost" size="sm">Sign in</Btn>
-          <Btn variant="primary" size="sm" onClick={() => scrollToId("register")}>Register <Arrow /></Btn>
+          <Btn variant="ghost" size="sm" onClick={() => goRegister("signin")}>Sign in</Btn>
+          <Btn variant="primary" size="sm" onClick={() => goRegister()}>Register <Arrow /></Btn>
         </div>
         <button className="grid h-10 w-10 place-items-center rounded-lg hover:bg-ink-50 md:hidden" onClick={() => setOpen(!open)} aria-label="Menu">
           <div className="space-y-1.5">
@@ -140,8 +144,8 @@ function Nav() {
                 className="rounded-lg px-3 py-2.5 text-left text-[15px] font-500 text-ink-700 hover:bg-ink-50">{l.label}</button>
             ))}
             <div className="mt-2 flex gap-2">
-              <Btn variant="outline" size="sm" className="flex-1">Sign in</Btn>
-              <Btn variant="primary" size="sm" className="flex-1" onClick={() => { scrollToId("register"); setOpen(false); }}>Register</Btn>
+              <Btn variant="outline" size="sm" className="flex-1" onClick={() => goRegister("signin")}>Sign in</Btn>
+              <Btn variant="primary" size="sm" className="flex-1" onClick={() => goRegister()}>Register</Btn>
             </div>
           </div>
         </div>
@@ -363,7 +367,7 @@ function FinalCTA() {
             Create a free account, find an event that fits, and claim your spot on the start line.
           </p>
           <div className="mt-9 flex flex-wrap justify-center gap-3">
-            <Btn variant="white" size="lg" onClick={() => scrollToId("participate")}>Register & compete <Arrow /></Btn>
+            <Btn variant="white" size="lg" onClick={() => goRegister()}>Register & compete <Arrow /></Btn>
             <Btn size="lg" className="border border-white/40 bg-white/0 text-white hover:bg-white/10" onClick={() => scrollToId("organize")}>I want to organize</Btn>
           </div>
         </div>
@@ -415,6 +419,6 @@ function Footer() {
 }
 
 Object.assign(window, {
-  Logo, Placeholder, SportTag, Pill, Btn, Arrow, useReveal, scrollToId,
+  Logo, Placeholder, SportTag, Pill, Btn, Arrow, useReveal, scrollToId, goRegister,
   Nav, Hero, HeroSplit, HeroCentered, HeroEditorial, Organizer, FinalCTA, Footer,
 });
