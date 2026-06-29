@@ -32,6 +32,16 @@ export function createTournament(payload, token) {
   return post('/tournaments', payload, token);
 }
 
+/* GET /tournaments — list all tournaments (public). */
+export async function listTournaments() {
+  const API_BASE = import.meta.env.VITE_API_BASE || '';
+  const res = await fetch(`${API_BASE}/tournaments`);
+  let data = null;
+  try { data = await res.json(); } catch { /* non-JSON */ }
+  if (!res.ok) throw new Error(data?.message || `Request failed (${res.status})`);
+  return data;
+}
+
 /* GET /sports — list all sports (public). */
 export async function listSports() {
   const API_BASE = import.meta.env.VITE_API_BASE || '';

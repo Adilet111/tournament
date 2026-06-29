@@ -280,6 +280,7 @@ export const translations = {
 
       competitions: {
         filterAll:    "All",
+        filterOpen:   "Open",
         filterLive:   "Live",
         filterDrafts: "Drafts",
         filterClosed: "Closed",
@@ -670,6 +671,7 @@ export const translations = {
 
       competitions: {
         filterAll:    "Все",
+        filterOpen:   "Открытые",
         filterLive:   "Активные",
         filterDrafts: "Черновики",
         filterClosed: "Закрытые",

@@ -44,7 +44,7 @@ export function AdminLogo({ onExit }) {
 export function StatusDot({ status }) {
   const { t } = useLang();
   const colors = {
-    live: 'bg-emerald-500', active: 'bg-emerald-500',
+    live: 'bg-emerald-500', active: 'bg-emerald-500', open: 'bg-emerald-500',
     draft: 'bg-ink-300', closed: 'bg-ink-400',
     pending: 'bg-amber-500', invited: 'bg-blue-500',
     paused: 'bg-amber-500', ended: 'bg-ink-300',

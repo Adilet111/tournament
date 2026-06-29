@@ -4,7 +4,7 @@ import { LOCATIONS, CATEGORIES } from '../data';
 import { useLang } from '../LangContext';
 import { useSession } from '../SessionContext';
 import { getAuthToken } from '../lib/auth';
-import { createTournament, listSports, createSport } from '../lib/api';
+import { createTournament, listTournaments, listSports, createSport } from '../lib/api';
 import { owned, REGISTRATIONS, SPONSORS, PROMOTIONS } from './adminData';
 import { Card, Btn, StatusDot, Avatar, Svg, Icon, fmt } from './AdminShell';
 
@@ -140,13 +140,38 @@ export function Competitions({ setView }) {
   const { t } = useLang();
   const c0 = t.admin.competitions;
   const [filter, setFilter] = useState('all');
-  const rows = owned.filter((c) => filter === 'all' || c.status === filter);
+  const [tournaments, setTournaments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(null);
+
+  useEffect(() => {
+    Promise.all([listTournaments(), listSports()])
+      .then(([ts, ss]) => {
+        const sportsMap = Object.fromEntries((Array.isArray(ss) ? ss : []).map((s) => [s.id, s.name]));
+        setTournaments((Array.isArray(ts) ? ts : []).map((t) => ({
+          id: t.id,
+          title: t.title,
+          sport: sportsMap[t.sportId] || t.sportId,
+          location: t.city || t.location,
+          date: t.startsAt ? new Date(t.startsAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—',
+          status: t.status,
+          capacity: t.capacity,
+          registered: t.registered ?? null,
+          fill: t.registered != null ? Math.round((t.registered / t.capacity) * 100) : null,
+          revenue: t.revenue ?? null,
+        })));
+      })
+      .catch((e) => setFetchError(e.message))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const rows = tournaments.filter((c) => filter === 'all' || c.status === filter);
 
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex gap-1.5">
-          {[['all', c0.filterAll], ['live', c0.filterLive], ['draft', c0.filterDrafts], ['closed', c0.filterClosed]].map(([id, l]) => (
+          {[['all', c0.filterAll], ['open', c0.filterOpen], ['live', c0.filterLive], ['draft', c0.filterDrafts], ['closed', c0.filterClosed]].map(([id, l]) => (
             <button key={id} onClick={() => setFilter(id)}
               className={'rounded-full border px-3.5 py-1.5 text-[13.5px] font-600 transition-all ' +
                 (filter === id ? 'border-accent bg-accent text-white' : 'border-ink-100 bg-white text-ink-700 hover:border-ink-300')}>
@@ -162,21 +187,29 @@ export function Competitions({ setView }) {
           <span>{c0.thCompetition}</span><span>{c0.thStatus}</span><span>{c0.thCapacity}</span><span>{c0.thRevenue}</span><span></span>
         </div>
         <div className="divide-y divide-ink-100">
+          {loading && <div className="px-6 py-5 text-[14px] text-ink-400">Loading…</div>}
+          {fetchError && <div className="px-6 py-5 text-[13.5px] text-red-500">{fetchError}</div>}
+          {!loading && !fetchError && rows.length === 0 && <div className="px-6 py-5 text-[14px] text-ink-400">No competitions found.</div>}
           {rows.map((c) => (
             <div key={c.id} className="grid grid-cols-1 gap-3 px-6 py-4 md:grid-cols-[2.4fr_1fr_1.2fr_1fr_auto] md:items-center md:gap-4">
               <div className="flex items-center gap-3">
                 <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-ink-50 font-mono text-[11px] font-600 uppercase text-ink-500">{(t.data.sports[c.sport] ?? c.sport).slice(0, 3)}</span>
                 <div className="min-w-0">
                   <div className="font-600 text-[15px] text-ink-900">{c.title}</div>
-                  <div className="mt-0.5 flex items-center gap-2 text-[12.5px] text-ink-500">{t.data.locations[c.location] ?? c.location} · {c.date}</div>
+                  <div className="mt-0.5 flex items-center gap-2 text-[12.5px] text-ink-500">{c.location} · {c.date}</div>
                 </div>
               </div>
               <div><StatusDot status={c.status} /></div>
               <div>
-                <div className="flex items-center justify-between text-[12.5px] text-ink-500"><span className="font-mono">{c.registered}/{c.capacity}</span><span>{c.fill}%</span></div>
-                <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-ink-50 md:w-32"><div className="h-full rounded-full bg-accent" style={{ width: c.fill + '%' }} /></div>
+                <div className="flex items-center justify-between text-[12.5px] text-ink-500">
+                  <span className="font-mono">{c.registered != null ? c.registered : '—'}/{c.capacity}</span>
+                  <span>{c.fill != null ? c.fill + '%' : '—'}</span>
+                </div>
+                <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-ink-50 md:w-32">
+                  <div className="h-full rounded-full bg-accent" style={{ width: (c.fill ?? 0) + '%' }} />
+                </div>
               </div>
-              <div className="font-display text-[15px] font-700 text-ink-900">{fmt(c.revenue)}</div>
+              <div className="font-display text-[15px] font-700 text-ink-900">{c.revenue != null ? fmt(c.revenue) : '—'}</div>
               <div className="flex gap-2">
                 <Btn variant="outline" size="sm">{c0.manage}</Btn>
                 <button className="grid h-9 w-9 place-items-center rounded-full border border-ink-100 text-ink-500 hover:bg-ink-50"><Svg d={Icon.dots} className="h-4 w-4" /></button>
