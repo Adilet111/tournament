@@ -8,6 +8,24 @@ const API_BASE = import.meta.env.VITE_AUTH_API_BASE || '';
 
 const TOKEN_KEY = 'rally.session';
 
+// Comma-separated allowlist of admin emails, e.g. VITE_ADMIN_EMAILS="a@x.com,b@y.com"
+const ADMIN_EMAILS = (import.meta.env.VITE_ADMIN_EMAILS || '')
+  .split(',')
+  .map((s) => s.trim().toLowerCase())
+  .filter(Boolean);
+
+/* Whether the given session belongs to an admin. A session counts as admin if
+   the backend flagged it (role/isAdmin) or the user's email is in the
+   VITE_ADMIN_EMAILS allowlist. */
+export function isAdmin(session) {
+  if (!session) return false;
+  if (session.isAdmin === true || session.role === 'admin') return true;
+  const u = session.user || {};
+  if (u.isAdmin === true || u.role === 'admin') return true;
+  const email = (u.email || '').toLowerCase();
+  return !!email && ADMIN_EMAILS.includes(email);
+}
+
 /* ---- session storage helpers ---- */
 export function getSession() {
   try {
@@ -21,6 +39,13 @@ export function setSession(session) {
 }
 export function clearSession() {
   localStorage.removeItem(TOKEN_KEY);
+}
+
+/* The bearer token to send on authenticated API calls. Prefer a backend-issued
+   token; fall back to the provider ID token (token-only sessions). */
+export function getAuthToken(session) {
+  if (!session) return null;
+  return session.token || session.accessToken || session.idToken || null;
 }
 
 /* Decode a JWT payload (e.g. a Google ID token) without verifying it — used

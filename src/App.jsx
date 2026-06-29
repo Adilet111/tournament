@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { LangProvider, useLang } from './LangContext';
-import { SessionProvider } from './SessionContext';
+import { SessionProvider, useSession } from './SessionContext';
 import { Nav, Hero, Organizer, FinalCTA, Footer } from './components/sections';
 import { Browse, Participate } from './components/interactive';
 import { useTweaks, TweaksPanel, TweakSection, TweakRadio, TweakColor, TweakSelect } from './components/TweaksPanel';
 import { Btn, SportTag } from './components/primitives';
 import { AuthPage } from './components/auth';
 import { ProfileModal } from './components/profile';
+import { AdminApp } from './admin/AdminApp';
 
 const TWEAK_DEFAULTS = {
   heroStyle: "split",
@@ -137,11 +138,37 @@ function RallyApp() {
   );
 }
 
+/* Tiny hash router: '#admin' shows the organizer dashboard, anything else the
+   landing page. Non-admins are bounced back to the landing page. */
+const readRoute = () =>
+  window.location.hash.replace(/^#\/?/, '').toLowerCase() === 'admin' ? 'admin' : 'home';
+
+function Router() {
+  const { isAdmin } = useSession();
+  const [route, setRoute] = useState(readRoute);
+
+  useEffect(() => {
+    const onHash = () => setRoute(readRoute());
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+
+  // Redirect non-admins (and signed-out users) away from the admin route.
+  useEffect(() => {
+    if (route === 'admin' && !isAdmin) window.location.hash = '';
+  }, [route, isAdmin]);
+
+  if (route === 'admin' && isAdmin) {
+    return <AdminApp onExit={() => { window.location.hash = ''; }} />;
+  }
+  return <RallyApp />;
+}
+
 export default function App() {
   return (
     <LangProvider>
       <SessionProvider>
-        <RallyApp />
+        <Router />
       </SessionProvider>
     </LangProvider>
   );

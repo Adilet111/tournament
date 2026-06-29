@@ -8,6 +8,7 @@ import {
   clearSession,
   getProfiles,
   setProfiles as persistProfiles,
+  isAdmin,
 } from './lib/auth';
 
 const SessionContext = createContext(null);
@@ -63,6 +64,7 @@ export function SessionProvider({ children }) {
         session,
         user: session?.user || null,
         isAuthed: !!session,
+        isAdmin: isAdmin(session),
         signIn,
         signOut,
         profiles,

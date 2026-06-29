@@ -17,7 +17,7 @@ function initials(name) {
 
 function UserMenu({ onCreateProfile }) {
   const { t } = useLang();
-  const { user, profiles, signOut } = useSession();
+  const { user, profiles, signOut, isAdmin } = useSession();
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   useEffect(() => {
@@ -59,6 +59,13 @@ function UserMenu({ onCreateProfile }) {
               className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[14px] font-600 text-ink-900 hover:bg-ink-50">
               <span className="text-accent">＋</span> {t.account.createProfile}
             </button>
+            {isAdmin && (
+              <button onClick={() => { setOpen(false); window.location.hash = 'admin'; }}
+                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[14px] font-600 text-ink-900 hover:bg-ink-50">
+                <svg viewBox="0 0 24 24" className="h-[17px] w-[17px] text-accent" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l7 4v5c0 4-3 6.5-7 9-4-2.5-7-5-7-9V7z" /></svg>
+                {t.account.admin}
+              </button>
+            )}
             <button onClick={() => { setOpen(false); signOut(); }}
               className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[14px] font-500 text-ink-500 hover:bg-ink-50">
               {t.account.signOut}
@@ -73,7 +80,7 @@ function UserMenu({ onCreateProfile }) {
 /* ---- Nav ---- */
 export function Nav({ onAuth, onCreateProfile }) {
   const { t } = useLang();
-  const { isAuthed, signOut } = useSession();
+  const { isAuthed, isAdmin, signOut } = useSession();
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
   useEffect(() => {
@@ -128,6 +135,9 @@ export function Nav({ onAuth, onCreateProfile }) {
               {isAuthed ? (
                 <>
                   <Btn variant="primary" size="sm" className="flex-1" onClick={() => { onCreateProfile(); setOpen(false); }}>{t.account.createProfile}</Btn>
+                  {isAdmin && (
+                    <Btn variant="dark" size="sm" className="flex-1" onClick={() => { window.location.hash = 'admin'; setOpen(false); }}>{t.account.admin}</Btn>
+                  )}
                   <Btn variant="outline" size="sm" className="flex-1" onClick={() => { signOut(); setOpen(false); }}>{t.account.signOut}</Btn>
                 </>
               ) : (
