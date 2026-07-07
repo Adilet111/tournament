@@ -15,6 +15,7 @@ export default defineConfig(({ mode }) => {
       proxy: {
         '/auth': { target: authTarget, changeOrigin: true },
         '/tournaments': { target: authTarget, changeOrigin: true },
+        '/profiles': { target: authTarget, changeOrigin: true },
       },
     },
   }

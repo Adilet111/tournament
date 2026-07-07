@@ -56,3 +56,17 @@ export async function listSports() {
 export function createSport(payload, token) {
   return post('/sports', payload, token);
 }
+
+/* GET /profiles/:sport — the signed-in user's skill profile for a sport slug,
+   e.g. GET /profiles/tennis with an Authorization: Bearer <idToken> header.
+   Returns the profile object, or null when the user has no profile yet (404). */
+export async function getProfile(sport, token) {
+  const res = await fetch(`${API_BASE}/profiles/${encodeURIComponent(sport)}`, {
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+  });
+  if (res.status === 404) return null;
+  let data = null;
+  try { data = await res.json(); } catch { /* non-JSON */ }
+  if (!res.ok) throw new Error(data?.message || `Request failed (${res.status})`);
+  return data;
+}

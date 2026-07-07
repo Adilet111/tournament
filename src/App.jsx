@@ -8,6 +8,8 @@ import { Btn, SportTag } from './components/primitives';
 import { AuthPage } from './components/auth';
 import { ProfileModal } from './components/profile';
 import { AdminApp } from './admin/AdminApp';
+import { getProfile } from './lib/api';
+import { getAuthToken } from './lib/auth';
 
 const TWEAK_DEFAULTS = {
   heroStyle: "split",
@@ -25,19 +27,38 @@ function Field({ label, value, onChange, placeholder, type = "text" }) {
   );
 }
 
-function RegisterModal({ comp, onClose }) {
+function RegisterModal({ comp, onClose, onCreateProfile }) {
   const { t } = useLang();
   const r = t.register;
+  const { session } = useSession();
+  const token = getAuthToken(session);
   const [stage, setStage] = useState("form");
   const [form, setForm] = useState({ name: "", email: "", cat: comp ? comp.cats[0] : "" });
+  // Backend skill-profile check for the clicked tournament's sport slug.
+  const [profileState, setProfileState] = useState("loading"); // loading | found | missing | error
+  const [checkKey, setCheckKey] = useState(0);
   useEffect(() => {
     const onKey = (e) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
     document.body.style.overflow = "hidden";
     return () => { window.removeEventListener("keydown", onKey); document.body.style.overflow = ""; };
   }, [onClose]);
+  const sportSlug = comp?.sport;
+  // On open (and on retry), GET /profiles/<sport slug> to see whether a profile
+  // already exists. The modal is keyed per tournament so it remounts (state
+  // resets to "loading") whenever a different competition is opened.
+  useEffect(() => {
+    if (!sportSlug) return;
+    let cancelled = false;
+    getProfile(sportSlug, token)
+      .then((p) => { if (!cancelled) setProfileState(p ? "found" : "missing"); })
+      .catch(() => { if (!cancelled) setProfileState("error"); });
+    return () => { cancelled = true; };
+  }, [sportSlug, token, checkKey]);
   if (!comp) return null;
-  const valid = form.name.trim() && /\S+@\S+\.\S+/.test(form.email);
+  const hasProfile = profileState === "found";
+  const valid = hasProfile && form.name.trim() && /\S+@\S+\.\S+/.test(form.email);
+  const sportName = t.data.sports[comp.sport] || comp.sport;
   return (
     <div className="fixed inset-0 z-50 grid place-items-center p-4" onMouseDown={onClose}>
       <div className="absolute inset-0 bg-ink-900/40 backdrop-blur-sm animate-[fadein_.2s_ease]" />
@@ -54,17 +75,42 @@ function RegisterModal({ comp, onClose }) {
             <div className="mt-5 space-y-3">
               <Field label={r.nameLbl} value={form.name} onChange={(v) => setForm({ ...form, name: v })} placeholder={r.namePlaceholder} />
               <Field label={r.emailLbl} type="email" value={form.email} onChange={(v) => setForm({ ...form, email: v })} placeholder="alex@email.com" />
-              <div>
-                <label className="font-mono text-[11px] uppercase tracking-wide text-ink-300">{r.categoryLbl}</label>
-                <div className="mt-1.5 flex flex-wrap gap-2">
-                  {comp.cats.map((c) => (
-                    <button key={c} onClick={() => setForm({ ...form, cat: c })}
-                      className={"rounded-full border px-3 py-1.5 text-[13px] font-500 transition-all " + (form.cat === c ? "border-accent bg-accent text-white" : "border-ink-100 text-ink-700 hover:border-ink-300")}>
-                      {t.data.categories[c]}
-                    </button>
-                  ))}
+              {profileState === "loading" && (
+                <div className="flex items-center gap-2 py-1 text-[13px] text-ink-500">
+                  <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-ink-200 border-t-accent" />
+                  Checking your {sportName.toLowerCase()} profile…
                 </div>
-              </div>
+              )}
+              {profileState === "found" && (
+                <div>
+                  <label className="font-mono text-[11px] uppercase tracking-wide text-ink-300">{r.categoryLbl}</label>
+                  <div className="mt-1.5 flex flex-wrap gap-2">
+                    {comp.cats.map((c) => (
+                      <button key={c} onClick={() => setForm({ ...form, cat: c })}
+                        className={"rounded-full border px-3 py-1.5 text-[13px] font-500 transition-all " + (form.cat === c ? "border-accent bg-accent text-white" : "border-ink-100 text-ink-700 hover:border-ink-300")}>
+                        {t.data.categories[c]}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="mt-2.5 flex items-center gap-1.5 text-[12.5px] font-500 text-[var(--accent-ink)]">
+                    <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 8l3.5 3.5L13 5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                    {sportName} profile ready
+                  </div>
+                </div>
+              )}
+              {profileState === "missing" && (
+                <div className="rounded-2xl border border-dashed border-accent/40 bg-[var(--accent-soft)] p-4 text-center">
+                  <p className="text-[14px] font-600 text-ink-900">No {sportName} profile yet</p>
+                  <p className="mt-1 text-[13px] leading-relaxed text-ink-500">Set up a quick profile so we can match you to the right category.</p>
+                  <Btn variant="dark" size="md" className="mt-3.5 w-full justify-center" onClick={() => onCreateProfile?.()}>Create profile</Btn>
+                </div>
+              )}
+              {profileState === "error" && (
+                <div className="rounded-2xl border border-dashed border-ink-200 bg-ink-50 p-4 text-center">
+                  <p className="text-[13.5px] text-ink-500">{token ? "Couldn't check your profile." : "Sign in to check your profile."}</p>
+                  <button onClick={() => { setProfileState("loading"); setCheckKey((k) => k + 1); }} className="mt-2 text-[13.5px] font-600 text-accent hover:underline">Retry</button>
+                </div>
+              )}
             </div>
             <div className="mt-6 flex items-center justify-between border-t border-ink-100 pt-4">
               <div><span className="font-display text-[22px] font-700 text-ink-900">£{comp.price}</span><span className="ml-1 text-[12px] text-ink-500">{r.entry}</span></div>
@@ -115,7 +161,7 @@ function RallyApp() {
         <FinalCTA onAuth={setAuthMode} />
       </main>
       <Footer />
-      {reg && <RegisterModal comp={reg} onClose={() => setReg(null)} />}
+      {reg && <RegisterModal key={reg.id} comp={reg} onClose={() => setReg(null)} onCreateProfile={() => setProfileOpen(true)} />}
       {authMode && <AuthPage mode={authMode} onClose={() => setAuthMode(null)} />}
       {profileOpen && <ProfileModal onClose={() => setProfileOpen(false)} />}
 
