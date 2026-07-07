@@ -69,6 +69,7 @@ function RegisterModal({ comp, onClose }) {
         sport={comp.sport}
         sportLabel={sportName}
         name={form.name || user?.name || ""}
+        token={token}
         onClose={() => setOnboarding(false)}
         onComplete={(answers) => {
           // Persist locally and optimistically flip the modal to "found".

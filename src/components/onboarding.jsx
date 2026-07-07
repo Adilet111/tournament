@@ -2,107 +2,48 @@
    Full-screen overlay that asks a few questions in a chat/messenger manner and
    hands the collected answers back via onComplete. */
 import { useState, useEffect, useRef } from 'react';
+import { getSportQuestions } from '../lib/api';
 
 const MASCOT = { name: 'Kico', emoji: '⚽' };
 const ACKS = ['Nice one!', 'Great choice!', 'Love that!', 'Good stuff!', 'Solid pick!'];
 
-/* Hardcoded questionnaires. "football" gets sport-specific questions; every
-   other sport falls back to a generic set (still tailored by label). */
-const QUESTIONNAIRES = {
-  football: [
-    {
-      id: 'position',
-      bot: [`Hey! I'm ${MASCOT.name} ${MASCOT.emoji} — let's set up your football profile.`, 'First up — what position do you usually play?'],
-      options: [
-        { label: 'Goalkeeper', value: 'gk' },
-        { label: 'Defender', value: 'def' },
-        { label: 'Midfielder', value: 'mid' },
-        { label: 'Forward', value: 'fwd' },
-      ],
-    },
-    {
-      id: 'experience',
-      bot: ['How would you describe your playing experience?'],
-      options: [
-        { label: 'Just starting out', value: 'beginner' },
-        { label: 'Recreational player', value: 'recreational' },
-        { label: 'Competitive club', value: 'competitive' },
-        { label: 'Semi-pro / pro', value: 'pro' },
-      ],
-    },
-    {
-      id: 'foot',
-      bot: ['Which foot do you favor?'],
-      options: [
-        { label: 'Left', value: 'left' },
-        { label: 'Right', value: 'right' },
-        { label: 'Both equally', value: 'both' },
-      ],
-    },
-    {
-      id: 'frequency',
-      bot: ['How often do you play these days?'],
-      options: [
-        { label: 'A few times a year', value: 'rarely' },
-        { label: 'Monthly', value: 'monthly' },
-        { label: 'Weekly', value: 'weekly' },
-        { label: 'Multiple times a week', value: 'frequent' },
-      ],
-    },
-    {
-      id: 'rating',
-      bot: ['Last one — how would you rate your overall skill level?'],
-      options: [
-        { label: 'Beginner', value: 'beginner' },
-        { label: 'Intermediate', value: 'intermediate' },
-        { label: 'Advanced', value: 'advanced' },
-        { label: 'Elite', value: 'elite' },
-      ],
-    },
-  ],
-  default: (sportLabel) => [
-    {
-      id: 'experience',
-      bot: [`Hey! I'm ${MASCOT.name} ${MASCOT.emoji} — let's build your ${sportLabel} profile.`, `How would you describe your experience with ${sportLabel.toLowerCase()}?`],
-      options: [
-        { label: 'Just starting out', value: 'beginner' },
-        { label: 'Recreational', value: 'recreational' },
-        { label: 'Competitive', value: 'competitive' },
-        { label: 'Semi-pro / pro', value: 'pro' },
-      ],
-    },
-    {
-      id: 'frequency',
-      bot: [`How often do you play ${sportLabel.toLowerCase()}?`],
-      options: [
-        { label: 'A few times a year', value: 'rarely' },
-        { label: 'Monthly', value: 'monthly' },
-        { label: 'Weekly', value: 'weekly' },
-        { label: 'Multiple times a week', value: 'frequent' },
-      ],
-    },
-    {
-      id: 'fitness',
-      bot: ["How's your current fitness level?"],
-      options: [
-        { label: 'Building up', value: 'building' },
-        { label: 'Solid', value: 'solid' },
-        { label: 'Very fit', value: 'fit' },
-        { label: 'Elite conditioning', value: 'elite' },
-      ],
-    },
-    {
-      id: 'rating',
-      bot: ['Last one — overall, how would you rate your skill?'],
-      options: [
-        { label: 'Beginner', value: 'beginner' },
-        { label: 'Intermediate', value: 'intermediate' },
-        { label: 'Advanced', value: 'advanced' },
-        { label: 'Elite', value: 'elite' },
-      ],
-    },
-  ],
-};
+/* ---- API response → chat shape normalizers ----
+   Questions come from GET /sports/:sport/questions. The backend shape isn't
+   fixed, so we defensively accept a few common variants:
+     • top level: an array of questions, or { questions: [...] }
+     • a question's prompt: `bot` (array), or text/question/prompt/title (string)
+     • a question's answers: `options` / `answers` / `choices` / `values`
+     • an option: a plain string, or an object with label/text/name + value/id. */
+function normalizeOption(o, j) {
+  if (o == null) return { label: '', value: `o${j}` };
+  if (typeof o === 'string' || typeof o === 'number') {
+    return { label: String(o), value: String(o) };
+  }
+  const label = o.label ?? o.text ?? o.title ?? o.name ?? o.value ?? `Option ${j + 1}`;
+  const value = o.value ?? o.id ?? o.key ?? o.slug ?? label;
+  return { label: String(label), value: String(value) };
+}
+
+function normalizeQuestion(q, i) {
+  const id = q.id ?? q.key ?? q.slug ?? q.name ?? `q${i}`;
+  const botRaw = q.bot ?? q.messages ?? q.prompts ?? q.text ?? q.question ?? q.prompt ?? q.title ?? '';
+  const bot = (Array.isArray(botRaw) ? botRaw : [botRaw]).map(String).filter(Boolean);
+  const optsRaw = q.options ?? q.answers ?? q.choices ?? q.values ?? [];
+  const options = (Array.isArray(optsRaw) ? optsRaw : []).map(normalizeOption);
+  return { id: String(id), bot, options };
+}
+
+/* Turn the raw API payload into a list of questions with at least one option. */
+function normalizeQuestions(raw) {
+  const list = Array.isArray(raw)
+    ? raw
+    : Array.isArray(raw?.questions)
+      ? raw.questions
+      : Array.isArray(raw?.data)
+        ? raw.data
+        : [];
+  return list.map(normalizeQuestion).filter((q) => q.bot.length && q.options.length);
+}
 
 function wait(ms) { return new Promise((r) => setTimeout(r, ms)); }
 let uidSeq = 0;
@@ -181,8 +122,10 @@ function OptionPill({ label, onClick, disabled }) {
   );
 }
 
-export function ProfileOnboarding({ sport, sportLabel, name, onClose, onComplete }) {
-  const questions = QUESTIONNAIRES[sport] || QUESTIONNAIRES.default(sportLabel || 'sport');
+export function ProfileOnboarding({ sport, sportLabel, name, token, onClose, onComplete }) {
+  const [questions, setQuestions] = useState([]); // fetched from the API
+  const [loadState, setLoadState] = useState('loading'); // loading | ready | error
+  const [loadKey, setLoadKey] = useState(0); // bumped to retry the fetch
   const [items, setItems] = useState([]); // stream of {type:'bot'|'user'|'divider', ...}
   const [typing, setTyping] = useState(false);
   const [qIndex, setQIndex] = useState(-1);
@@ -198,6 +141,21 @@ export function ProfileOnboarding({ sport, sportLabel, name, onClose, onComplete
     document.body.style.overflow = 'hidden';
     return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = ''; };
   }, [onClose]);
+
+  // Fetch the questionnaire for this sport slug from GET /sports/:sport/questions.
+  useEffect(() => {
+    let cancelled = false;
+    getSportQuestions(sport, token)
+      .then((raw) => {
+        if (cancelled) return;
+        const qs = normalizeQuestions(raw);
+        if (!qs.length) { setLoadState('error'); return; }
+        setQuestions(qs);
+        setLoadState('ready');
+      })
+      .catch(() => { if (!cancelled) setLoadState('error'); });
+    return () => { cancelled = true; };
+  }, [sport, token, loadKey]);
 
   useEffect(() => {
     if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
@@ -219,15 +177,17 @@ export function ProfileOnboarding({ sport, sportLabel, name, onClose, onComplete
     setOptionsVisible(true);
   };
 
+  // Kick off the chat once the questions have loaded.
   useEffect(() => {
-    if (runningRef.current) return;
+    if (loadState !== 'ready' || runningRef.current) return;
     runningRef.current = true;
     (async () => {
       await wait(400);
+      await sayBot(`Hey! I'm ${MASCOT.name} ${MASCOT.emoji} — let's set up your ${sportLabel || 'sport'} profile.`);
       await askQuestion(0);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [loadState]);
 
   const choose = async (opt) => {
     if (!optionsVisible) return;
@@ -248,7 +208,7 @@ export function ProfileOnboarding({ sport, sportLabel, name, onClose, onComplete
   };
 
   const totalSteps = questions.length;
-  const progressPct = done ? 100 : Math.round(((qIndex + (optionsVisible ? 0 : 0.4)) / totalSteps) * 100);
+  const progressPct = done ? 100 : totalSteps ? Math.round(((qIndex + (optionsVisible ? 0 : 0.4)) / totalSteps) * 100) : 0;
 
   return (
     <div className="fixed inset-0 z-[60] flex flex-col bg-[#0b0d13]">
@@ -267,13 +227,40 @@ export function ProfileOnboarding({ sport, sportLabel, name, onClose, onComplete
       {/* chat stream */}
       <div ref={listRef} className="flex-1 overflow-y-auto px-4 py-5 sm:px-6" style={{ scrollBehavior: 'smooth' }}>
         <div className="mx-auto flex max-w-md flex-col gap-3">
+          {loadState === 'loading' && (
+            <div className="flex items-center gap-2.5 chat-in">
+              <MascotAvatar size={28} />
+              <div className="flex items-center gap-2 rounded-2xl rounded-bl-md bg-[#1c2230] px-4 py-3 text-[14px] text-white/70">
+                <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/20 border-t-[var(--accent)]" />
+                Loading your questions…
+              </div>
+            </div>
+          )}
+          {loadState === 'error' && (
+            <div className="mt-6 flex flex-col items-center gap-4 py-6 text-center chat-in">
+              <span className="grid h-14 w-14 place-items-center rounded-full bg-white/5 text-[26px]">😕</span>
+              <p className="max-w-xs text-[14.5px] leading-relaxed text-white/70">
+                Couldn't load the {(sportLabel || 'sport').toLowerCase()} questions right now.
+              </p>
+              <div className="flex gap-2">
+                <button onClick={() => { setLoadState('loading'); setLoadKey((k) => k + 1); }}
+                  className="rounded-2xl bg-[var(--accent)] px-5 py-2.5 text-[14px] font-600 text-white transition-all hover:brightness-110">
+                  Try again
+                </button>
+                <button onClick={() => onClose()}
+                  className="rounded-2xl border border-white/15 px-5 py-2.5 text-[14px] font-600 text-white/80 transition-all hover:bg-white/10">
+                  Close
+                </button>
+              </div>
+            </div>
+          )}
           {items.map((it) => {
             if (it.type === 'divider') return <StepDivider key={it.id} n={it.n} />;
             if (it.type === 'bot') return <BotBubble key={it.id} text={it.text} />;
             return <UserBubble key={it.id} text={it.text} />;
           })}
           {typing && <TypingBubble />}
-          {optionsVisible && !done && (
+          {optionsVisible && !done && questions[qIndex] && (
             <div className="mt-1 flex flex-col gap-2">
               {questions[qIndex].options.map((opt) => (
                 <OptionPill key={opt.value} label={opt.label} onClick={() => choose(opt)} />

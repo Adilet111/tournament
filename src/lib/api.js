@@ -57,6 +57,19 @@ export function createSport(payload, token) {
   return post('/sports', payload, token);
 }
 
+/* GET /sports/:sport/questions — the onboarding questionnaire for a sport slug,
+   e.g. GET /sports/football/questions. Returns whatever the backend sends;
+   the onboarding component normalizes it into its bubble/option shape. */
+export async function getSportQuestions(sport, token) {
+  const res = await fetch(`${API_BASE}/sports/${encodeURIComponent(sport)}/questions`, {
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+  });
+  let data = null;
+  try { data = await res.json(); } catch { /* non-JSON */ }
+  if (!res.ok) throw new Error(data?.message || `Request failed (${res.status})`);
+  return data;
+}
+
 /* GET /profiles/:sport — the signed-in user's skill profile for a sport slug,
    e.g. GET /profiles/tennis with an Authorization: Bearer <idToken> header.
    Returns the profile object, or null when the user has no profile yet (404). */
