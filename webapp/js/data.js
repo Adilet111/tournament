@@ -54,11 +54,27 @@
     return m ? m.label : id;
   }
 
+  /* ---- per-sport skill profiles (demo persistence via localStorage) ---- */
+  const PROFILE_KEY = "rally:profiles";
+  function readProfiles() {
+    try { return JSON.parse(localStorage.getItem(PROFILE_KEY)) || {}; }
+    catch (e) { return {}; }
+  }
+  function hasProfile(sport) { return !!readProfiles()[sport]; }
+  function getProfile(sport) { return readProfiles()[sport] || null; }
+  function saveProfile(sport, answers) {
+    const all = readProfiles();
+    all[sport] = { answers, completedAt: new Date().toISOString() };
+    try { localStorage.setItem(PROFILE_KEY, JSON.stringify(all)); } catch (e) {}
+    return all[sport];
+  }
+
   window.RALLY = {
     SPORTS, LOCATIONS, WINDOWS, CATEGORIES, COMPETITIONS,
     sportLabel: (id) => labelFor(SPORTS, id),
     locationLabel: (id) => labelFor(LOCATIONS, id),
     windowLabel: (id) => labelFor(WINDOWS, id),
     categoryLabel: (id) => labelFor(CATEGORIES, id),
+    hasProfile, getProfile, saveProfile,
   };
 })();

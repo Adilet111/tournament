@@ -9,10 +9,12 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
 
 /* ---- registration modal ---- */
 function RegisterModal({ comp, onClose }) {
-  const { Btn, SportTag, Pill } = window;
+  const { Btn, SportTag, Pill, ProfileOnboarding } = window;
   const R = window.RALLY;
   const [stage, setStage] = useStateA("form");
   const [form, setForm] = useStateA({ name: "", email: "", cat: comp ? comp.cats[0] : "" });
+  const [onboarding, setOnboarding] = useStateA(false);
+  const [profileVersion, setProfileVersion] = useStateA(0);
   useEffectA(() => {
     const onKey = (e) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
@@ -20,7 +22,24 @@ function RegisterModal({ comp, onClose }) {
     return () => { window.removeEventListener("keydown", onKey); document.body.style.overflow = ""; };
   }, []);
   if (!comp) return null;
-  const valid = form.name.trim() && /\S+@\S+\.\S+/.test(form.email);
+  const hasProfile = profileVersion >= 0 && R.hasProfile(comp.sport);
+  const valid = hasProfile && form.name.trim() && /\S+@\S+\.\S+/.test(form.email);
+
+  if (onboarding) {
+    return (
+      <ProfileOnboarding
+        sport={comp.sport}
+        sportLabel={R.sportLabel(comp.sport)}
+        name={form.name}
+        onClose={() => setOnboarding(false)}
+        onComplete={(answers) => {
+          R.saveProfile(comp.sport, answers);
+          setOnboarding(false);
+          setProfileVersion((v) => v + 1);
+        }}
+      />
+    );
+  }
   return (
     <div className="fixed inset-0 z-50 grid place-items-center p-4" onMouseDown={onClose}>
       <div className="absolute inset-0 bg-ink-900/40 backdrop-blur-sm animate-[fadein_.2s_ease]" />
@@ -37,17 +56,29 @@ function RegisterModal({ comp, onClose }) {
             <div className="mt-5 space-y-3">
               <Field label="Full name" value={form.name} onChange={(v) => setForm({ ...form, name: v })} placeholder="Alex Morgan" />
               <Field label="Email" type="email" value={form.email} onChange={(v) => setForm({ ...form, email: v })} placeholder="alex@email.com" />
-              <div>
-                <label className="font-mono text-[11px] uppercase tracking-wide text-ink-300">Category</label>
-                <div className="mt-1.5 flex flex-wrap gap-2">
-                  {comp.cats.map((c) => (
-                    <button key={c} onClick={() => setForm({ ...form, cat: c })}
-                      className={"rounded-full border px-3 py-1.5 text-[13px] font-500 transition-all " + (form.cat === c ? "border-accent bg-accent text-white" : "border-ink-100 text-ink-700 hover:border-ink-300")}>
-                      {R.categoryLabel(c)}
-                    </button>
-                  ))}
+              {hasProfile ? (
+                <div>
+                  <label className="font-mono text-[11px] uppercase tracking-wide text-ink-300">Category</label>
+                  <div className="mt-1.5 flex flex-wrap gap-2">
+                    {comp.cats.map((c) => (
+                      <button key={c} onClick={() => setForm({ ...form, cat: c })}
+                        className={"rounded-full border px-3 py-1.5 text-[13px] font-500 transition-all " + (form.cat === c ? "border-accent bg-accent text-white" : "border-ink-100 text-ink-700 hover:border-ink-300")}>
+                        {R.categoryLabel(c)}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="mt-2.5 flex items-center gap-1.5 text-[12.5px] font-500 text-[var(--accent-ink)]">
+                    <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 8l3.5 3.5L13 5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                    {R.sportLabel(comp.sport)} skill profile ready
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="rounded-2xl border border-dashed border-accent/40 bg-[var(--accent-soft)] p-4 text-center">
+                  <p className="text-[14px] font-600 text-ink-900">No {R.sportLabel(comp.sport)} skill profile yet</p>
+                  <p className="mt-1 text-[13px] leading-relaxed text-ink-500">Answer a few quick questions so we can match you to the right category.</p>
+                  <Btn variant="dark" size="md" className="mt-3.5 w-full justify-center" onClick={() => setOnboarding(true)}>Create profile</Btn>
+                </div>
+              )}
             </div>
             <div className="mt-6 flex items-center justify-between border-t border-ink-100 pt-4">
               <div><span className="font-display text-[22px] font-700 text-ink-900">£{comp.price}</span><span className="ml-1 text-[12px] text-ink-500">entry</span></div>
