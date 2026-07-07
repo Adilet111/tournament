@@ -7,6 +7,7 @@ import { useTweaks, TweaksPanel, TweakSection, TweakRadio, TweakColor, TweakSele
 import { Btn, SportTag } from './components/primitives';
 import { AuthPage } from './components/auth';
 import { ProfileModal } from './components/profile';
+import { ProfileOnboarding } from './components/onboarding';
 import { AdminApp } from './admin/AdminApp';
 import { getProfile } from './lib/api';
 import { getAuthToken } from './lib/auth';
@@ -27,16 +28,17 @@ function Field({ label, value, onChange, placeholder, type = "text" }) {
   );
 }
 
-function RegisterModal({ comp, onClose, onCreateProfile }) {
+function RegisterModal({ comp, onClose }) {
   const { t } = useLang();
   const r = t.register;
-  const { session } = useSession();
+  const { session, user, addProfile } = useSession();
   const token = getAuthToken(session);
   const [stage, setStage] = useState("form");
   const [form, setForm] = useState({ name: "", email: "", cat: comp ? comp.cats[0] : "" });
   // Backend skill-profile check for the clicked tournament's sport slug.
   const [profileState, setProfileState] = useState("loading"); // loading | found | missing | error
   const [checkKey, setCheckKey] = useState(0);
+  const [onboarding, setOnboarding] = useState(false); // chat-style profile builder
   useEffect(() => {
     const onKey = (e) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
@@ -59,6 +61,26 @@ function RegisterModal({ comp, onClose, onCreateProfile }) {
   const hasProfile = profileState === "found";
   const valid = hasProfile && form.name.trim() && /\S+@\S+\.\S+/.test(form.email);
   const sportName = t.data.sports[comp.sport] || comp.sport;
+
+  // "Create profile" launches the chat-style onboarding instead of a plain form.
+  if (onboarding) {
+    return (
+      <ProfileOnboarding
+        sport={comp.sport}
+        sportLabel={sportName}
+        name={form.name || user?.name || ""}
+        onClose={() => setOnboarding(false)}
+        onComplete={(answers) => {
+          // Persist locally and optimistically flip the modal to "found".
+          // TODO: also POST answers to /profiles/<sport> once the backend
+          // create endpoint + payload shape are known.
+          addProfile({ sport: comp.sport, displayName: form.name || user?.name || "", answers });
+          setOnboarding(false);
+          setProfileState("found");
+        }}
+      />
+    );
+  }
   return (
     <div className="fixed inset-0 z-50 grid place-items-center p-4" onMouseDown={onClose}>
       <div className="absolute inset-0 bg-ink-900/40 backdrop-blur-sm animate-[fadein_.2s_ease]" />
@@ -102,7 +124,7 @@ function RegisterModal({ comp, onClose, onCreateProfile }) {
                 <div className="rounded-2xl border border-dashed border-accent/40 bg-[var(--accent-soft)] p-4 text-center">
                   <p className="text-[14px] font-600 text-ink-900">No {sportName} profile yet</p>
                   <p className="mt-1 text-[13px] leading-relaxed text-ink-500">Set up a quick profile so we can match you to the right category.</p>
-                  <Btn variant="dark" size="md" className="mt-3.5 w-full justify-center" onClick={() => onCreateProfile?.()}>Create profile</Btn>
+                  <Btn variant="dark" size="md" className="mt-3.5 w-full justify-center" onClick={() => setOnboarding(true)}>Create profile</Btn>
                 </div>
               )}
               {profileState === "error" && (
@@ -161,7 +183,7 @@ function RallyApp() {
         <FinalCTA onAuth={setAuthMode} />
       </main>
       <Footer />
-      {reg && <RegisterModal key={reg.id} comp={reg} onClose={() => setReg(null)} onCreateProfile={() => setProfileOpen(true)} />}
+      {reg && <RegisterModal key={reg.id} comp={reg} onClose={() => setReg(null)} />}
       {authMode && <AuthPage mode={authMode} onClose={() => setAuthMode(null)} />}
       {profileOpen && <ProfileModal onClose={() => setProfileOpen(false)} />}
 
