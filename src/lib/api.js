@@ -70,11 +70,20 @@ export async function getSportQuestions(sport, token) {
   return data;
 }
 
-/* GET /profiles/:sport — the signed-in user's skill profile for a sport slug,
-   e.g. GET /profiles/tennis with an Authorization: Bearer <idToken> header.
-   Returns the profile object, or null when the user has no profile yet (404). */
+/* POST /sports/:sport/profile — submit onboarding answers, e.g.
+   POST /sports/football/profile with body { answers: { ... } }. The backend
+   scores the answers and returns the created profile, including a `placement`
+   block: { elo, tier, division, lp } (tier = rank name Iron…Challenger,
+   division = sub-division IV–I, elo = score, also mirrored as top-level rating). */
+export function submitProfileAnswers(sport, answers, token) {
+  return post(`/sports/${encodeURIComponent(sport)}/profile`, { answers }, token);
+}
+
+/* GET /sports/:sport/profile — the signed-in user's skill profile for a sport
+   slug, e.g. GET /sports/tennis/profile with an Authorization: Bearer <idToken>
+   header. Returns the profile object, or null when the user has no profile yet (404). */
 export async function getProfile(sport, token) {
-  const res = await fetch(`${API_BASE}/profiles/${encodeURIComponent(sport)}`, {
+  const res = await fetch(`${API_BASE}/sports/${encodeURIComponent(sport)}/profile`, {
     headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
   });
   if (res.status === 404) return null;

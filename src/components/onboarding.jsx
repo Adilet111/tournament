@@ -53,6 +53,41 @@ const uid = () => `m${Date.now()}_${uidSeq++}`;
 const randomAck = () => ACKS[Math.floor(Math.random() * ACKS.length)];
 const typingDelay = () => 550 + Math.random() * 350;
 
+/* ---- rank reveal (presentation only) ----
+   The rank is computed by the backend and returned in the `placement` block;
+   here we only map the tier name to its colours and render the badge. Tiers
+   follow the Iron → Challenger ladder. */
+const TIER_STYLES = {
+  iron:        { label: 'Iron',        color: '#7d7d82', glow: 'rgba(125,125,130,.32)' },
+  bronze:      { label: 'Bronze',      color: '#c17a4a', glow: 'rgba(193,122,74,.35)' },
+  silver:      { label: 'Silver',      color: '#a8b2bd', glow: 'rgba(168,178,189,.35)' },
+  gold:        { label: 'Gold',        color: '#e0b23d', glow: 'rgba(224,178,61,.35)' },
+  platinum:    { label: 'Platinum',    color: '#4fd1c5', glow: 'rgba(79,209,197,.35)' },
+  emerald:     { label: 'Emerald',     color: '#33c481', glow: 'rgba(51,196,129,.35)' },
+  diamond:     { label: 'Diamond',     color: '#6ab0f3', glow: 'rgba(106,176,243,.38)' },
+  master:      { label: 'Master',      color: '#c58bf2', glow: 'rgba(197,139,242,.4)' },
+  grandmaster: { label: 'Grandmaster', color: '#e0574a', glow: 'rgba(224,87,74,.4)' },
+  challenger:  { label: 'Challenger',  color: '#f0d264', glow: 'rgba(240,210,100,.45)' },
+};
+const DEFAULT_TIER = { label: 'Unranked', color: '#8a94a6', glow: 'rgba(138,148,166,.3)' };
+
+/* Turn the backend's POST /sports/:sport/profile response into the shape
+   RankReveal expects. The scored rank lives in a `placement` block:
+     placement.tier     → rank name  (Iron … Challenger)               → shown big + coloured
+     placement.division → sub-division (IV–I; empty for Challenger)    → shown small
+     placement.elo      → numeric score (also mirrored as top-level `rating`) */
+function normalizeRank(raw) {
+  const p = raw?.placement ?? raw ?? {};
+  const tierName = String(p.tier ?? '').trim();
+  const key = tierName.toLowerCase();
+  const style = TIER_STYLES[key] || DEFAULT_TIER;
+  const division = { key, label: tierName || style.label, color: style.color, glow: style.glow };
+  const tier = String(p.division ?? '').trim(); // roman sub-division, e.g. "III"
+  const rating = Number(p.elo ?? raw?.rating ?? 0) || 0;
+  const label = `${division.label}${tier ? ' ' + tier : ''}`;
+  return { division, tier, rating, label };
+}
+
 function MascotAvatar({ size = 36 }) {
   return (
     <span
@@ -111,6 +146,47 @@ function StepDivider({ n }) {
   );
 }
 
+function RankReveal({ result, onContinue }) {
+  const { division, tier, rating } = result;
+  const [show, setShow] = useState(false);
+  useEffect(() => { const t = setTimeout(() => setShow(true), 80); return () => clearTimeout(t); }, []);
+  return (
+    <div className="mt-2 flex flex-col items-center gap-5 py-3 text-center">
+      <div className={'rank-badge-in flex flex-col items-center gap-4' + (show ? ' rank-badge-show' : '')}>
+        <div
+          className="grid h-28 w-28 place-items-center rounded-full text-[13px] font-700 uppercase tracking-wide"
+          style={{
+            background: `radial-gradient(circle at 35% 30%, color-mix(in srgb, ${division.color} 55%, white), ${division.color})`,
+            boxShadow: `0 0 0 6px ${division.glow}, 0 18px 40px -12px ${division.glow}`,
+          }}>
+          <svg viewBox="0 0 24 24" className="h-12 w-12" fill="none" stroke="#0b0d13" strokeWidth="1.6">
+            <path d="M12 2l2.5 5.5L20 8.5l-4.2 4 1 6-4.8-3-4.8 3 1-6L4 8.5l5.5-1z" strokeLinejoin="round" strokeLinecap="round" fill="rgba(11,13,19,.12)" />
+          </svg>
+        </div>
+        <div>
+          <div className="font-mono text-[12px] uppercase tracking-[0.16em] text-white/40">Your division</div>
+          <div className="mt-1 flex items-baseline justify-center gap-2">
+            <span className="font-display text-[28px] font-700" style={{ color: division.color }}>{division.label}</span>
+            {tier && <span className="font-display text-[20px] font-700 text-white/50">{tier}</span>}
+          </div>
+        </div>
+        <div className="flex items-center gap-2 rounded-full bg-white/[0.06] px-4 py-2">
+          <span className="font-mono text-[13px] text-white/50">Rating</span>
+          <span className="text-[16px] font-700 text-white">{rating.toLocaleString()}</span>
+        </div>
+      </div>
+      <button onClick={onContinue}
+        className="w-full rounded-2xl bg-[var(--accent)] px-5 py-3.5 text-[15px] font-600 text-white transition-all hover:brightness-110 active:translate-y-px">
+        Continue to registration
+      </button>
+      <style>{`
+        .rank-badge-in { opacity: 0; transform: scale(.82) translateY(10px); transition: opacity .5s ease, transform .5s cubic-bezier(.2,1.4,.4,1); }
+        .rank-badge-show { opacity: 1; transform: scale(1) translateY(0); }
+      `}</style>
+    </div>
+  );
+}
+
 function OptionPill({ label, onClick, disabled }) {
   return (
     <button
@@ -122,7 +198,7 @@ function OptionPill({ label, onClick, disabled }) {
   );
 }
 
-export function ProfileOnboarding({ sport, sportLabel, name, token, onClose, onComplete }) {
+export function ProfileOnboarding({ sport, sportLabel, name, token, onClose, onComplete, onSubmit }) {
   const [questions, setQuestions] = useState([]); // fetched from the API
   const [loadState, setLoadState] = useState('loading'); // loading | ready | error
   const [loadKey, setLoadKey] = useState(0); // bumped to retry the fetch
@@ -131,6 +207,8 @@ export function ProfileOnboarding({ sport, sportLabel, name, token, onClose, onC
   const [qIndex, setQIndex] = useState(-1);
   const [optionsVisible, setOptionsVisible] = useState(false);
   const [done, setDone] = useState(false);
+  const [result, setResult] = useState(null); // rank returned by the backend
+  const [scoreState, setScoreState] = useState('idle'); // idle | scoring | error
   const answersRef = useRef({});
   const listRef = useRef(null);
   const runningRef = useRef(false);
@@ -189,6 +267,23 @@ export function ProfileOnboarding({ sport, sportLabel, name, token, onClose, onC
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadState]);
 
+  // Submit the collected answers to the backend, which scores them and returns
+  // the division / tier / rating we reveal. Also used by the error "Try again".
+  const finish = async () => {
+    setScoreState('scoring');
+    setTyping(true);
+    try {
+      const raw = onSubmit ? await onSubmit(answersRef.current) : {};
+      setResult(normalizeRank(raw || {}));
+      setTyping(false);
+      setScoreState('idle');
+      setDone(true);
+    } catch {
+      setTyping(false);
+      setScoreState('error');
+    }
+  };
+
   const choose = async (opt) => {
     if (!optionsVisible) return;
     setOptionsVisible(false);
@@ -203,7 +298,8 @@ export function ProfileOnboarding({ sport, sportLabel, name, token, onClose, onC
     } else {
       await wait(250);
       await sayBot(`You're all set${name ? ', ' + name.split(' ')[0] : ''}! Let's find your level.`);
-      setDone(true);
+      await wait(200);
+      await finish();
     }
   };
 
@@ -267,13 +363,18 @@ export function ProfileOnboarding({ sport, sportLabel, name, token, onClose, onC
               ))}
             </div>
           )}
-          {done && (
-            <div className="mt-3 flex flex-col items-center gap-4 py-4 text-center chat-in">
-              <span className="grid h-16 w-16 place-items-center rounded-full bg-[var(--accent)]/15 text-[32px]">🎉</span>
-              <button onClick={() => onComplete(answersRef.current)}
-                className="w-full rounded-2xl bg-[var(--accent)] px-5 py-3.5 text-[15px] font-600 text-white transition-all hover:brightness-110 active:translate-y-px">
-                Continue to registration
+          {scoreState === 'error' && !done && (
+            <div className="mt-4 flex flex-col items-center gap-3 py-3 text-center chat-in">
+              <p className="max-w-xs text-[14.5px] leading-relaxed text-white/70">Couldn't score your answers right now.</p>
+              <button onClick={() => finish()}
+                className="rounded-2xl bg-[var(--accent)] px-5 py-2.5 text-[14px] font-600 text-white transition-all hover:brightness-110">
+                Try again
               </button>
+            </div>
+          )}
+          {done && result && (
+            <div className="chat-in">
+              <RankReveal result={result} onContinue={() => onComplete(answersRef.current, result)} />
             </div>
           )}
         </div>

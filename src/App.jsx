@@ -9,7 +9,7 @@ import { AuthPage } from './components/auth';
 import { ProfileModal } from './components/profile';
 import { ProfileOnboarding } from './components/onboarding';
 import { AdminApp } from './admin/AdminApp';
-import { getProfile } from './lib/api';
+import { getProfile, submitProfileAnswers } from './lib/api';
 import { getAuthToken } from './lib/auth';
 
 const TWEAK_DEFAULTS = {
@@ -71,11 +71,19 @@ function RegisterModal({ comp, onClose }) {
         name={form.name || user?.name || ""}
         token={token}
         onClose={() => setOnboarding(false)}
-        onComplete={(answers) => {
-          // Persist locally and optimistically flip the modal to "found".
-          // TODO: also POST answers to /profiles/<sport> once the backend
-          // create endpoint + payload shape are known.
-          addProfile({ sport: comp.sport, displayName: form.name || user?.name || "", answers });
+        onSubmit={(answers) => submitProfileAnswers(comp.sport, answers, token)}
+        onComplete={(answers, rank) => {
+          // The backend has scored the answers; persist the profile + rank and
+          // flip the modal to "found".
+          addProfile({
+            sport: comp.sport,
+            displayName: form.name || user?.name || "",
+            answers,
+            division: rank?.division?.key,
+            tier: rank?.tier,
+            rating: rank?.rating,
+            rankLabel: rank?.label,
+          });
           setOnboarding(false);
           setProfileState("found");
         }}
