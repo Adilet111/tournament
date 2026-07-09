@@ -1,8 +1,9 @@
 /* Rally — backend API client (non-auth endpoints).
-   Blank base => requests hit /<path> and go through the Vite dev proxy
-   (see vite.config.js), which forwards to the backend without CORS in dev. */
+   Every endpoint is served under /api. Blank VITE_API_BASE => requests hit
+   /api/<path> and go through the Vite dev proxy (see vite.config.js), which
+   forwards to the backend without CORS in dev. */
 
-const API_BASE = import.meta.env.VITE_API_BASE || '';
+const API_BASE = (import.meta.env.VITE_API_BASE || '') + '/api';
 
 /* Shared request helper for the JSON endpoints. `body === undefined` sends no
    body; any other value (including {}) is JSON-serialized. Tolerates empty
@@ -137,7 +138,6 @@ export async function getAdminUser(id, token) {
 
 /* GET /tournaments — list all tournaments (public). */
 export async function listTournaments() {
-  const API_BASE = import.meta.env.VITE_API_BASE || '';
   const res = await fetch(`${API_BASE}/tournaments`);
   let data = null;
   try { data = await res.json(); } catch { /* non-JSON */ }
@@ -147,7 +147,6 @@ export async function listTournaments() {
 
 /* GET /sports — list all sports (public). */
 export async function listSports() {
-  const API_BASE = import.meta.env.VITE_API_BASE || '';
   const res = await fetch(`${API_BASE}/sports`);
   let data = null;
   try { data = await res.json(); } catch { /* non-JSON */ }
