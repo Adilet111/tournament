@@ -34,9 +34,10 @@ export function createTournament(payload, token) {
 
 /* POST /tournaments/:id/register — register the signed-in user for a tournament,
    e.g. POST /tournaments/<uuid>/register with an Authorization: Bearer <idToken>
-   header. Requires a token; the user is identified from it, so no body is sent. */
+   header. Requires a token; the user is identified from it, so we send an empty
+   JSON body ({}). */
 export function registerForTournament(tournamentId, token) {
-  return post(`/tournaments/${encodeURIComponent(tournamentId)}/register`, undefined, token);
+  return post(`/tournaments/${encodeURIComponent(tournamentId)}/register`, {}, token);
 }
 
 /* GET /tournaments — list all tournaments (public). */
