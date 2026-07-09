@@ -46,15 +46,38 @@ export function StatusDot({ status }) {
   const colors = {
     live: 'bg-emerald-500', active: 'bg-emerald-500', open: 'bg-emerald-500',
     draft: 'bg-ink-300', closed: 'bg-ink-400',
+    completed: 'bg-blue-500', cancelled: 'bg-red-400',
+    registered: 'bg-emerald-500', withdrawn: 'bg-ink-400',
     pending: 'bg-amber-500', invited: 'bg-blue-500',
     paused: 'bg-amber-500', ended: 'bg-ink-300',
   };
   const color = colors[status] || 'bg-ink-300';
-  const label = t.admin.status[status] || status;
+  const label = t.admin.status[status] || (status ? status[0].toUpperCase() + status.slice(1) : status);
   return (
     <span className="inline-flex items-center gap-1.5 text-[13px] font-500 text-ink-700">
       <span className={'h-2 w-2 rounded-full ' + color} /> {label}
     </span>
+  );
+}
+
+/* Centered modal overlay used by the admin manage / user-detail panels. */
+export function Modal({ title, sub, onClose, children, maxW = 'max-w-lg' }) {
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center p-4" onMouseDown={onClose}>
+      <div className="absolute inset-0 bg-ink-900/40 backdrop-blur-sm" />
+      <div className={'relative flex max-h-[88vh] w-full flex-col overflow-hidden rounded-2xl border border-ink-100 bg-white shadow-2xl ' + maxW}
+        onMouseDown={(e) => e.stopPropagation()}>
+        <div className="flex items-start justify-between gap-4 border-b border-ink-100 px-6 py-4">
+          <div className="min-w-0">
+            <h3 className="font-display text-[18px] font-700 tracking-[-0.01em] text-ink-900">{title}</h3>
+            {sub && <p className="mt-0.5 truncate text-[13px] text-ink-500">{sub}</p>}
+          </div>
+          <button onClick={onClose} aria-label="Close"
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-ink-500 hover:bg-ink-50 hover:text-ink-900">✕</button>
+        </div>
+        <div className="overflow-y-auto px-6 py-5">{children}</div>
+      </div>
+    </div>
   );
 }
 

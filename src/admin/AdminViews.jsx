@@ -4,9 +4,27 @@ import { LOCATIONS, CATEGORIES } from '../data';
 import { useLang } from '../LangContext';
 import { useSession } from '../SessionContext';
 import { getAuthToken } from '../lib/auth';
-import { createTournament, listTournaments, listSports, createSport } from '../lib/api';
+import {
+  createTournament, listSports, createSport,
+  listAdminTournaments, getTournament, updateTournament, deleteTournament,
+  listRegistrations, addRegistration, updateRegistration, deleteRegistration, getAdminUser,
+} from '../lib/api';
 import { owned, REGISTRATIONS, SPONSORS, PROMOTIONS } from './adminData';
-import { Card, Btn, StatusDot, Avatar, Svg, Icon, fmt } from './AdminShell';
+import { Card, Btn, StatusDot, Avatar, Svg, Icon, fmt, Modal } from './AdminShell';
+
+/* Tournament lifecycle state machine (mirrors ADMIN_LOGIC.md §2). */
+const ALLOWED_TRANSITIONS = {
+  draft: ['open', 'cancelled'],
+  open: ['closed', 'cancelled'],
+  closed: ['completed', 'open', 'cancelled'],
+  completed: [],
+  cancelled: [],
+};
+const STATUS_LABEL = { draft: 'Draft', open: 'Open', closed: 'Closed', completed: 'Completed', cancelled: 'Cancelled' };
+const STATUS_FILTERS = ['all', 'draft', 'open', 'closed', 'completed', 'cancelled'];
+
+const fmtDate = (iso, opts = { day: 'numeric', month: 'short', year: 'numeric' }) =>
+  iso ? new Date(iso).toLocaleDateString('en-GB', opts) : '—';
 
 /* Skill category -> rating band. Placeholder ranges — the min/max rating sent
    to the backend is derived from the selected category pills. Adjust these
@@ -135,47 +153,64 @@ export function Overview({ setView }) {
   );
 }
 
-/* ======================================================== COMPETITIONS === */
+/* ======================================================== COMPETITIONS ===
+   Backed by GET /admin/tournaments (every status). "Manage" opens the lifecycle
+   / edit / delete panel. */
 export function Competitions({ setView }) {
   const { t } = useLang();
   const c0 = t.admin.competitions;
+  const { session } = useSession();
+  const token = getAuthToken(session);
   const [filter, setFilter] = useState('all');
   const [tournaments, setTournaments] = useState([]);
+  const [sportsMap, setSportsMap] = useState({});
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(null);
+  const [reloadKey, setReloadKey] = useState(0);
+  const [managing, setManaging] = useState(null);
 
   useEffect(() => {
-    Promise.all([listTournaments(), listSports()])
+    let cancelled = false;
+    Promise.all([listAdminTournaments(filter === 'all' ? undefined : filter, token), listSports()])
       .then(([ts, ss]) => {
-        const sportsMap = Object.fromEntries((Array.isArray(ss) ? ss : []).map((s) => [s.id, s.name]));
-        setTournaments((Array.isArray(ts) ? ts : []).map((t) => ({
-          id: t.id,
-          title: t.title,
-          sport: sportsMap[t.sportId] || t.sportId,
-          location: t.city || t.location,
-          date: t.startsAt ? new Date(t.startsAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—',
-          status: t.status,
-          capacity: t.capacity,
-          registered: t.registered ?? null,
-          fill: t.registered != null ? Math.round((t.registered / t.capacity) * 100) : null,
-          revenue: t.revenue ?? null,
-        })));
+        if (cancelled) return;
+        setSportsMap(Object.fromEntries((Array.isArray(ss) ? ss : []).map((s) => [s.id, s.name])));
+        setTournaments(Array.isArray(ts) ? ts : []);
+        setFetchError(null);
       })
-      .catch((e) => setFetchError(e.message))
-      .finally(() => setLoading(false));
-  }, []);
+      .catch((e) => { if (!cancelled) setFetchError(e.message); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [filter, token, reloadKey]);
 
-  const rows = tournaments.filter((c) => filter === 'all' || c.status === filter);
+  const reload = () => setReloadKey((k) => k + 1);
+
+  const rows = tournaments.map((tr) => {
+    const registered = tr.registeredCount ?? tr.registered ?? null;
+    const capacity = tr.capacity ?? null;
+    return {
+      raw: tr,
+      id: tr.id,
+      title: tr.title,
+      sport: sportsMap[tr.sportId] || tr.sportId,
+      location: tr.city || tr.location || '—',
+      date: fmtDate(tr.startsAt),
+      status: tr.status,
+      capacity,
+      registered,
+      fill: registered != null && capacity ? Math.round((registered / capacity) * 100) : null,
+    };
+  });
 
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex gap-1.5">
-          {[['all', c0.filterAll], ['open', c0.filterOpen], ['live', c0.filterLive], ['draft', c0.filterDrafts], ['closed', c0.filterClosed]].map(([id, l]) => (
+        <div className="flex flex-wrap gap-1.5">
+          {STATUS_FILTERS.map((id) => (
             <button key={id} onClick={() => setFilter(id)}
-              className={'rounded-full border px-3.5 py-1.5 text-[13.5px] font-600 transition-all ' +
+              className={'rounded-full border px-3.5 py-1.5 text-[13.5px] font-600 capitalize transition-all ' +
                 (filter === id ? 'border-accent bg-accent text-white' : 'border-ink-100 bg-white text-ink-700 hover:border-ink-300')}>
-              {l}
+              {id === 'all' ? c0.filterAll : STATUS_LABEL[id]}
             </button>
           ))}
         </div>
@@ -183,17 +218,17 @@ export function Competitions({ setView }) {
       </div>
 
       <Card className="overflow-hidden">
-        <div className="hidden grid-cols-[2.4fr_1fr_1.2fr_1fr_auto] gap-4 border-b border-ink-100 px-6 py-3 font-mono text-[11px] uppercase tracking-wide text-ink-400 md:grid">
-          <span>{c0.thCompetition}</span><span>{c0.thStatus}</span><span>{c0.thCapacity}</span><span>{c0.thRevenue}</span><span></span>
+        <div className="hidden grid-cols-[2.4fr_1fr_1.4fr_auto] gap-4 border-b border-ink-100 px-6 py-3 font-mono text-[11px] uppercase tracking-wide text-ink-400 md:grid">
+          <span>{c0.thCompetition}</span><span>{c0.thStatus}</span><span>{c0.thCapacity}</span><span></span>
         </div>
         <div className="divide-y divide-ink-100">
           {loading && <div className="px-6 py-5 text-[14px] text-ink-400">Loading…</div>}
           {fetchError && <div className="px-6 py-5 text-[13.5px] text-red-500">{fetchError}</div>}
           {!loading && !fetchError && rows.length === 0 && <div className="px-6 py-5 text-[14px] text-ink-400">No competitions found.</div>}
           {rows.map((c) => (
-            <div key={c.id} className="grid grid-cols-1 gap-3 px-6 py-4 md:grid-cols-[2.4fr_1fr_1.2fr_1fr_auto] md:items-center md:gap-4">
+            <div key={c.id} className="grid grid-cols-1 gap-3 px-6 py-4 md:grid-cols-[2.4fr_1fr_1.4fr_auto] md:items-center md:gap-4">
               <div className="flex items-center gap-3">
-                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-ink-50 font-mono text-[11px] font-600 uppercase text-ink-500">{(t.data.sports[c.sport] ?? c.sport).slice(0, 3)}</span>
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-ink-50 font-mono text-[11px] font-600 uppercase text-ink-500">{(t.data.sports[c.sport] ?? c.sport ?? '???').slice(0, 3)}</span>
                 <div className="min-w-0">
                   <div className="font-600 text-[15px] text-ink-900">{c.title}</div>
                   <div className="mt-0.5 flex items-center gap-2 text-[12.5px] text-ink-500">{c.location} · {c.date}</div>
@@ -202,35 +237,252 @@ export function Competitions({ setView }) {
               <div><StatusDot status={c.status} /></div>
               <div>
                 <div className="flex items-center justify-between text-[12.5px] text-ink-500">
-                  <span className="font-mono">{c.registered != null ? c.registered : '—'}/{c.capacity}</span>
+                  <span className="font-mono">{c.registered != null ? c.registered : '—'}/{c.capacity ?? '∞'}</span>
                   <span>{c.fill != null ? c.fill + '%' : '—'}</span>
                 </div>
                 <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-ink-50 md:w-32">
                   <div className="h-full rounded-full bg-accent" style={{ width: (c.fill ?? 0) + '%' }} />
                 </div>
               </div>
-              <div className="font-display text-[15px] font-700 text-ink-900">{c.revenue != null ? fmt(c.revenue) : '—'}</div>
               <div className="flex gap-2">
-                <Btn variant="outline" size="sm">{c0.manage}</Btn>
-                <button className="grid h-9 w-9 place-items-center rounded-full border border-ink-100 text-ink-500 hover:bg-ink-50"><Svg d={Icon.dots} className="h-4 w-4" /></button>
+                <Btn variant="outline" size="sm" onClick={() => setManaging(c.raw)}>{c0.manage}</Btn>
               </div>
             </div>
           ))}
         </div>
       </Card>
+
+      {managing && (
+        <ManageTournament
+          tournament={managing}
+          token={token}
+          sportName={sportsMap[managing.sportId] || managing.sportId}
+          onClose={() => setManaging(null)}
+          onChanged={reload}
+        />
+      )}
     </div>
   );
 }
 
-/* ======================================================= REGISTRATIONS === */
+/* ---- manage one tournament: edit fields, move status, delete ---- */
+function ManageTournament({ tournament, token, sportName, onClose, onChanged }) {
+  const [detail, setDetail] = useState(tournament);
+  const [form, setForm] = useState({
+    title: tournament.title ?? '',
+    capacity: tournament.capacity ?? '',
+    entryFee: tournament.entryFee ?? '',
+    minRating: tournament.minRating ?? '',
+    maxRating: tournament.maxRating ?? '',
+    startsAt: tournament.startsAt ? tournament.startsAt.slice(0, 10) : '',
+    description: tournament.description ?? '',
+  });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  const [notice, setNotice] = useState(null);
+
+  // Pull live detail for an accurate registeredCount (drives the delete gate).
+  useEffect(() => {
+    let cancelled = false;
+    getTournament(tournament.id, token).then((d) => { if (!cancelled && d) setDetail(d); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [tournament.id, token]);
+
+  const status = detail.status;
+  const registered = detail.registeredCount ?? detail.registered ?? 0;
+  const nextStatuses = ALLOWED_TRANSITIONS[status] || [];
+
+  const num = (v) => (v === '' || v == null ? null : Number(v));
+
+  const saveFields = async () => {
+    const patch = {};
+    if (form.title.trim() !== (detail.title ?? '')) patch.title = form.title.trim();
+    if (num(form.capacity) !== (detail.capacity ?? null)) patch.capacity = num(form.capacity);
+    const fee = form.entryFee === '' ? 0 : Number(form.entryFee);
+    if (fee !== (detail.entryFee ?? 0)) patch.entryFee = fee;
+    if (num(form.minRating) !== (detail.minRating ?? null)) patch.minRating = num(form.minRating);
+    if (num(form.maxRating) !== (detail.maxRating ?? null)) patch.maxRating = num(form.maxRating);
+    const iso = form.startsAt ? new Date(form.startsAt).toISOString() : null;
+    if ((iso?.slice(0, 10) ?? null) !== (detail.startsAt ? detail.startsAt.slice(0, 10) : null)) patch.startsAt = iso;
+    if (form.description !== (detail.description ?? '')) patch.description = form.description;
+
+    if (!Object.keys(patch).length) { setNotice('No changes to save.'); setError(null); return; }
+    setBusy(true); setError(null); setNotice(null);
+    try {
+      const updated = await updateTournament(tournament.id, patch, token);
+      setDetail((d) => ({ ...d, ...(updated || patch) }));
+      setNotice('Changes saved.');
+      onChanged?.();
+    } catch (e) { setError(e.message); }
+    finally { setBusy(false); }
+  };
+
+  const move = async (next) => {
+    setBusy(true); setError(null); setNotice(null);
+    try {
+      const updated = await updateTournament(tournament.id, { status: next }, token);
+      setDetail((d) => ({ ...d, ...(updated || {}), status: next }));
+      setNotice(`Status changed to ${STATUS_LABEL[next] || next}.`);
+      onChanged?.();
+    } catch (e) { setError(e.message); }
+    finally { setBusy(false); }
+  };
+
+  const remove = async () => {
+    if (registered > 0) return;
+    if (!window.confirm('Delete this tournament permanently? This cannot be undone.')) return;
+    setBusy(true); setError(null);
+    try {
+      await deleteTournament(tournament.id, token);
+      onChanged?.();
+      onClose();
+    } catch (e) { setError(e.message); setBusy(false); }
+  };
+
+  const field = 'mt-1.5 w-full rounded-xl border border-ink-200 bg-white px-3.5 py-2.5 text-[15px] text-ink-900 outline-none transition-colors focus:border-accent placeholder:text-ink-300';
+  const lbl = 'font-mono text-[11px] uppercase tracking-wide text-ink-300';
+
+  return (
+    <Modal title={detail.title || 'Tournament'} sub={`${sportName ?? ''} · ${registered} registered`} onClose={onClose}>
+      <div className="space-y-6">
+        {/* lifecycle */}
+        <section>
+          <div className="flex items-center justify-between">
+            <span className={lbl}>Status</span>
+            <StatusDot status={status} />
+          </div>
+          {nextStatuses.length ? (
+            <div className="mt-2.5 flex flex-wrap gap-2">
+              {nextStatuses.map((s) => (
+                <Btn key={s} variant={s === 'cancelled' ? 'outline' : 'dark'} size="sm" disabled={busy} onClick={() => move(s)}>
+                  {s === 'open' && status === 'closed' ? 'Re-open' : STATUS_LABEL[s]}
+                </Btn>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-2 text-[13px] text-ink-400">This status is terminal — no further transitions.</p>
+          )}
+        </section>
+
+        {/* editable fields */}
+        <section className="space-y-4 border-t border-ink-100 pt-5">
+          <div>
+            <span className={lbl}>Title</span>
+            <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className={field} />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <span className={lbl}>Capacity</span>
+              <input type="number" value={form.capacity} onChange={(e) => setForm({ ...form, capacity: e.target.value })} placeholder="∞" className={field} />
+            </div>
+            <div>
+              <span className={lbl}>Entry fee</span>
+              <input type="number" value={form.entryFee} onChange={(e) => setForm({ ...form, entryFee: e.target.value })} placeholder="0" className={field} />
+            </div>
+            <div>
+              <span className={lbl}>Min rating</span>
+              <input type="number" value={form.minRating} onChange={(e) => setForm({ ...form, minRating: e.target.value })} placeholder="none" className={field} />
+            </div>
+            <div>
+              <span className={lbl}>Max rating</span>
+              <input type="number" value={form.maxRating} onChange={(e) => setForm({ ...form, maxRating: e.target.value })} placeholder="none" className={field} />
+            </div>
+          </div>
+          <div>
+            <span className={lbl}>Starts</span>
+            <input type="date" value={form.startsAt} onChange={(e) => setForm({ ...form, startsAt: e.target.value })} className={field} />
+          </div>
+          <div>
+            <span className={lbl}>Description</span>
+            <textarea rows={2} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className={field} />
+          </div>
+          <Btn variant="primary" size="md" disabled={busy} onClick={saveFields}>{busy ? 'Saving…' : 'Save changes'}</Btn>
+        </section>
+
+        {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-[13.5px] text-red-700">{error}</div>}
+        {notice && <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-[13.5px] text-emerald-700">{notice}</div>}
+
+        {/* danger zone */}
+        <section className="border-t border-ink-100 pt-5">
+          <span className={lbl}>Danger zone</span>
+          {registered > 0 ? (
+            <p className="mt-1.5 text-[13px] leading-relaxed text-ink-500">
+              This tournament has {registered} registration{registered === 1 ? '' : 's'}, so it can't be deleted.
+              Use <b>Cancel</b> above to call it off while keeping participant history.
+            </p>
+          ) : (
+            <div className="mt-2 flex items-center justify-between gap-3">
+              <p className="text-[13px] text-ink-500">No registrations — safe to delete permanently.</p>
+              <Btn variant="outline" size="sm" className="!border-red-200 !text-red-600 hover:!bg-red-50" disabled={busy} onClick={remove}>Delete</Btn>
+            </div>
+          )}
+        </section>
+      </div>
+    </Modal>
+  );
+}
+
+/* ======================================================= REGISTRATIONS ===
+   Pick a tournament, then view/manage its participants via
+   GET/POST/PATCH/DELETE /tournaments/:id/registrations. Clicking a row opens
+   the full user record (GET /admin/users/:id). */
 export function Registrations() {
   const { t } = useLang();
   const rg = t.admin.registrations;
-  const [comp, setComp] = useState('all');
-  const [paid, setPaid] = useState('all');
-  const rows = REGISTRATIONS.filter((r) =>
-    (comp === 'all' || r.comp === comp) && (paid === 'all' || (paid === 'paid') === r.paid));
-  const paidTotal = rows.filter((r) => r.paid).reduce((s, r) => s + r.amount, 0);
+  const { session } = useSession();
+  const token = getAuthToken(session);
+
+  const [tournaments, setTournaments] = useState([]);
+  const [selId, setSelId] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [reloadKey, setReloadKey] = useState(0);
+  const [rowBusy, setRowBusy] = useState(null); // userId currently mutating
+  const [addOpen, setAddOpen] = useState(false);
+  const [viewUser, setViewUser] = useState(null);
+
+  // Tournament selector — all statuses so admins can inspect any event.
+  useEffect(() => {
+    listAdminTournaments(undefined, token)
+      .then((ts) => {
+        const list = Array.isArray(ts) ? ts : [];
+        setTournaments(list);
+        setSelId((cur) => cur || (list[0]?.id ?? ''));
+        if (list.length === 0) setLoading(false);
+      })
+      .catch((e) => { setError(e.message); setLoading(false); });
+  }, [token]);
+
+  // Registrations for the selected tournament.
+  useEffect(() => {
+    if (!selId) return;
+    let cancelled = false;
+    listRegistrations(selId, statusFilter === 'all' ? undefined : statusFilter, token)
+      .then((rs) => { if (!cancelled) { setRows(Array.isArray(rs) ? rs : []); setError(null); } })
+      .catch((e) => { if (!cancelled) setError(e.message); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [selId, statusFilter, token, reloadKey]);
+
+  const reload = () => setReloadKey((k) => k + 1);
+  const selected = tournaments.find((tr) => tr.id === selId);
+
+  const mutate = async (userId, fn) => {
+    setRowBusy(userId);
+    try { await fn(); reload(); }
+    catch (e) { setError(e.message); }
+    finally { setRowBusy(null); }
+  };
+  const withdraw = (userId) => mutate(userId, () => updateRegistration(selId, userId, 'withdrawn', token));
+  const reinstate = (userId) => mutate(userId, () => updateRegistration(selId, userId, 'registered', token));
+  const remove = (userId) => {
+    if (!window.confirm('Remove this registration entirely? (Withdraw instead if you want to keep the record.)')) return;
+    mutate(userId, () => deleteRegistration(selId, userId, token));
+  };
+
+  const registeredCount = rows.filter((r) => (r.status ?? 'registered') === 'registered').length;
 
   return (
     <div className="space-y-5">
@@ -238,46 +490,171 @@ export function Registrations() {
         <div className="flex flex-wrap gap-3">
           <label className="flex items-center gap-2 rounded-xl border border-ink-100 bg-white px-3">
             <span className="font-mono text-[11px] uppercase tracking-wide text-ink-300">{rg.event}</span>
-            <select value={comp} onChange={(e) => setComp(e.target.value)} className="bg-transparent py-2.5 text-[14px] font-500 text-ink-900 outline-none">
-              <option value="all">{rg.allEvents}</option>
-              {owned.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
+            <select value={selId} onChange={(e) => setSelId(e.target.value)} className="bg-transparent py-2.5 text-[14px] font-500 text-ink-900 outline-none">
+              {tournaments.length === 0 && <option value="">No tournaments</option>}
+              {tournaments.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
             </select>
           </label>
           <div className="flex gap-1.5">
-            {[['all', rg.filterAll], ['paid', rg.filterPaid], ['unpaid', rg.filterUnpaid]].map(([id, l]) => (
-              <button key={id} onClick={() => setPaid(id)}
-                className={'rounded-full border px-3.5 py-2 text-[13.5px] font-600 ' + (paid === id ? 'border-accent bg-accent text-white' : 'border-ink-100 bg-white text-ink-700 hover:border-ink-300')}>{l}</button>
+            {[['all', rg.filterAll], ['registered', 'Registered'], ['withdrawn', 'Withdrawn']].map(([id, l]) => (
+              <button key={id} onClick={() => setStatusFilter(id)}
+                className={'rounded-full border px-3.5 py-2 text-[13.5px] font-600 ' + (statusFilter === id ? 'border-accent bg-accent text-white' : 'border-ink-100 bg-white text-ink-700 hover:border-ink-300')}>{l}</button>
             ))}
           </div>
         </div>
-        <Btn variant="outline" size="md"><Svg d={Icon.out} className="h-[16px] w-[16px]" /> {rg.exportCsv}</Btn>
+        <Btn variant="dark" size="md" disabled={!selId} onClick={() => setAddOpen(true)}><Svg d={Icon.plus} className="h-4 w-4" /> Add participant</Btn>
       </div>
 
       <div className="flex flex-wrap gap-3 text-[13.5px]">
         <span className="rounded-full bg-ink-50 px-3 py-1.5 text-ink-700"><b className="font-700 text-ink-900">{rows.length}</b> {rg.regWordFn(rows.length)}</span>
-        <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-emerald-700"><b className="font-700">{fmt(paidTotal)}</b> {rg.collected}</span>
+        <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-emerald-700"><b className="font-700">{registeredCount}</b> active</span>
+        {selected?.capacity != null && <span className="rounded-full bg-ink-50 px-3 py-1.5 text-ink-700">Capacity <b className="font-700 text-ink-900">{selected.capacity}</b></span>}
       </div>
 
+      {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-[13.5px] text-red-700">{error}</div>}
+
       <Card className="overflow-hidden">
-        <div className="hidden grid-cols-[2fr_1.6fr_1fr_1fr_0.8fr] gap-4 border-b border-ink-100 px-6 py-3 font-mono text-[11px] uppercase tracking-wide text-ink-400 md:grid">
-          <span>{rg.thAthlete}</span><span>{rg.thEvent}</span><span>{rg.thCategory}</span><span>{rg.thStatus}</span><span>{rg.thWhen}</span>
+        <div className="hidden grid-cols-[2fr_1fr_1fr_1fr_auto] gap-4 border-b border-ink-100 px-6 py-3 font-mono text-[11px] uppercase tracking-wide text-ink-400 md:grid">
+          <span>{rg.thAthlete}</span><span>Rating</span><span>{rg.thStatus}</span><span>{rg.thWhen}</span><span></span>
         </div>
         <div className="divide-y divide-ink-100">
-          {rows.map((r) => (
-            <div key={r.id} className="grid grid-cols-1 gap-2 px-6 py-3.5 md:grid-cols-[2fr_1.6fr_1fr_1fr_0.8fr] md:items-center md:gap-4">
-              <div className="flex items-center gap-3">
-                <Avatar name={r.name} />
-                <div className="min-w-0"><div className="text-[14.5px] font-600 text-ink-900">{r.name}</div><div className="truncate text-[12.5px] text-ink-500">{r.email}</div></div>
+          {loading && <div className="px-6 py-5 text-[14px] text-ink-400">Loading…</div>}
+          {!loading && rows.length === 0 && <div className="px-6 py-5 text-[14px] text-ink-400">No registrations for this event yet.</div>}
+          {rows.map((r) => {
+            const st = r.status ?? 'registered';
+            const busy = rowBusy === r.userId;
+            return (
+              <div key={r.userId} className="grid grid-cols-1 gap-2 px-6 py-3.5 md:grid-cols-[2fr_1fr_1fr_1fr_auto] md:items-center md:gap-4">
+                <button onClick={() => setViewUser(r.userId)} className="flex items-center gap-3 text-left">
+                  <Avatar name={r.name || r.email || '?'} />
+                  <div className="min-w-0">
+                    <div className="text-[14.5px] font-600 text-ink-900 hover:text-accent">{r.name || '—'}</div>
+                    <div className="truncate text-[12.5px] text-ink-500">{r.email}</div>
+                  </div>
+                </button>
+                <div className="font-mono text-[13.5px] text-ink-700">{r.rating != null ? r.rating : '—'}</div>
+                <div><StatusDot status={st} /></div>
+                <div className="font-mono text-[12.5px] text-ink-400">{fmtDate(r.registeredAt)}</div>
+                <div className="flex justify-end gap-2">
+                  {st === 'registered'
+                    ? <Btn variant="outline" size="sm" disabled={busy} onClick={() => withdraw(r.userId)}>Withdraw</Btn>
+                    : <Btn variant="outline" size="sm" disabled={busy} onClick={() => reinstate(r.userId)}>Reinstate</Btn>}
+                  <button title="Remove" disabled={busy} onClick={() => remove(r.userId)}
+                    className="grid h-9 w-9 place-items-center rounded-full border border-ink-100 text-ink-400 hover:border-red-200 hover:bg-red-50 hover:text-red-500 disabled:opacity-40">✕</button>
+                </div>
               </div>
-              <div className="truncate text-[14px] text-ink-700">{r.compTitle}</div>
-              <div className="text-[13.5px] text-ink-500">{t.data.categories[r.category] ?? r.category}</div>
-              <div><span className={'rounded-full px-2.5 py-1 text-[12px] font-600 ' + (r.paid ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700')}>{r.paid ? rg.paidFn(r.amount) : rg.pending}</span></div>
-              <div className="font-mono text-[12.5px] text-ink-400">{r.ago}</div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </Card>
+
+      {addOpen && (
+        <AddParticipant tournamentId={selId} tournamentTitle={selected?.title} token={token}
+          onClose={() => setAddOpen(false)} onAdded={() => { setAddOpen(false); reload(); }} />
+      )}
+      {viewUser && <UserDetail userId={viewUser} token={token} onClose={() => setViewUser(null)} />}
     </div>
+  );
+}
+
+/* ---- admin add-participant (override; bypasses open/rating/capacity gates) ---- */
+function AddParticipant({ tournamentId, tournamentTitle, token, onClose, onAdded }) {
+  const [userId, setUserId] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  const field = 'mt-1.5 w-full rounded-xl border border-ink-200 bg-white px-3.5 py-2.5 text-[15px] text-ink-900 outline-none transition-colors focus:border-accent placeholder:text-ink-300';
+
+  const add = async () => {
+    const id = userId.trim();
+    if (!id || busy) return;
+    setBusy(true); setError(null);
+    try { await addRegistration(tournamentId, id, token); onAdded(); }
+    catch (e) { setError(e.message); setBusy(false); }
+  };
+
+  return (
+    <Modal title="Add participant" sub={tournamentTitle} onClose={onClose} maxW="max-w-md">
+      <p className="text-[13.5px] leading-relaxed text-ink-500">
+        Register a player on their behalf. This bypasses the open-status, rating and capacity gates,
+        but the user must already have a profile in this tournament's sport.
+      </p>
+      <div className="mt-4">
+        <span className="font-mono text-[11px] uppercase tracking-wide text-ink-300">User ID</span>
+        <input value={userId} onChange={(e) => setUserId(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') add(); }}
+          placeholder="user uuid" className={field} autoFocus />
+      </div>
+      {error && <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-[13.5px] text-red-700">{error}</div>}
+      <div className="mt-5 flex justify-end gap-2">
+        <Btn variant="ghost" size="md" onClick={onClose}>Cancel</Btn>
+        <Btn variant="primary" size="md" disabled={!userId.trim() || busy} onClick={add}>{busy ? 'Adding…' : 'Add participant'}</Btn>
+      </div>
+    </Modal>
+  );
+}
+
+/* ---- full user record: account, all sport profiles, tournament history ---- */
+function UserDetail({ userId, token, onClose }) {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    getAdminUser(userId, token)
+      .then((d) => { if (!cancelled) setData(d); })
+      .catch((e) => { if (!cancelled) setError(e.message); });
+    return () => { cancelled = true; };
+  }, [userId, token]);
+
+  const u = data?.user;
+  const profiles = data?.profiles ?? [];
+  const regs = data?.registrations ?? [];
+  const lbl = 'font-mono text-[11px] uppercase tracking-wide text-ink-300';
+
+  return (
+    <Modal title={u?.name || 'User'} sub={u?.email} onClose={onClose}>
+      {!data && !error && <div className="text-[14px] text-ink-400">Loading…</div>}
+      {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-[13.5px] text-red-700">{error}</div>}
+      {data && (
+        <div className="space-y-6">
+          <section>
+            <span className={lbl}>Account</span>
+            <div className="mt-2 grid grid-cols-2 gap-3 text-[14px]">
+              <div><div className="text-ink-400 text-[12px]">Role</div><div className="font-500 capitalize text-ink-900">{u?.role ?? '—'}</div></div>
+              <div><div className="text-ink-400 text-[12px]">Joined</div><div className="font-500 text-ink-900">{fmtDate(u?.createdAt)}</div></div>
+            </div>
+          </section>
+
+          <section className="border-t border-ink-100 pt-5">
+            <span className={lbl}>Sport profiles ({profiles.length})</span>
+            <div className="mt-2 space-y-2">
+              {profiles.length === 0 && <div className="text-[13.5px] text-ink-400">No profiles.</div>}
+              {profiles.map((p, i) => (
+                <div key={i} className="flex items-center justify-between rounded-xl border border-ink-100 px-3.5 py-2.5">
+                  <span className="text-[14px] font-600 capitalize text-ink-900">{p.sport ?? p.sportName ?? p.sportId ?? '—'}</span>
+                  <span className="font-mono text-[13.5px] text-ink-700">{p.rating != null ? p.rating : '—'}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="border-t border-ink-100 pt-5">
+            <span className={lbl}>Tournament history ({regs.length})</span>
+            <div className="mt-2 space-y-2">
+              {regs.length === 0 && <div className="text-[13.5px] text-ink-400">No registrations.</div>}
+              {regs.map((r, i) => (
+                <div key={i} className="flex items-center justify-between gap-3 rounded-xl border border-ink-100 px-3.5 py-2.5">
+                  <div className="min-w-0">
+                    <div className="truncate text-[14px] font-600 text-ink-900">{r.tournamentTitle ?? r.title ?? r.tournamentId}</div>
+                    <div className="text-[12px] text-ink-400">{fmtDate(r.startsAt)}{r.tournamentStatus ? ' · ' + (STATUS_LABEL[r.tournamentStatus] || r.tournamentStatus) : ''}</div>
+                  </div>
+                  <StatusDot status={r.status ?? 'registered'} />
+                </div>
+              ))}
+            </div>
+          </section>
+        </div>
+      )}
+    </Modal>
   );
 }
 
