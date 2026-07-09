@@ -10,10 +10,10 @@ export default defineConfig(({ mode }) => {
     plugins: [react(), tailwindcss()],
     server: {
       // Forward API calls to the backend so the browser avoids CORS in dev.
-      // /auth/* is used when VITE_AUTH_API_BASE is blank; /api/* (tournaments,
-      // sports, profiles, admin) when VITE_API_BASE is blank.
+      // Everything is served under /api/* (auth, tournaments, sports, profiles,
+      // admin) and hits the dev proxy when VITE_API_BASE / VITE_AUTH_API_BASE
+      // are blank.
       proxy: {
-        '/auth': { target: authTarget, changeOrigin: true },
         '/api': { target: authTarget, changeOrigin: true },
       },
     },

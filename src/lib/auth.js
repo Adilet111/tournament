@@ -3,8 +3,9 @@
    then exchanges it at the backend's POST /auth/login endpoint. */
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-// Blank base => requests hit /auth/* and go through the Vite dev proxy.
-const API_BASE = import.meta.env.VITE_AUTH_API_BASE || '';
+// Auth is served under /api like the rest of the backend. Blank base => requests
+// hit /api/auth/* and go through the Vite dev proxy.
+const API_BASE = (import.meta.env.VITE_AUTH_API_BASE || '') + '/api';
 
 const TOKEN_KEY = 'rally.session';
 
