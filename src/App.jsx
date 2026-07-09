@@ -18,23 +18,13 @@ const TWEAK_DEFAULTS = {
   displayFont: "Schibsted Grotesk",
 };
 
-function Field({ label, value, onChange, placeholder, type = "text" }) {
-  return (
-    <label className="block">
-      <span className="font-mono text-[11px] uppercase tracking-wide text-ink-300">{label}</span>
-      <input type={type} value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)}
-        className="ring-accent mt-1.5 w-full rounded-xl border border-ink-100 px-3.5 py-2.5 text-[15px] text-ink-900 outline-none transition-colors focus:border-accent" />
-    </label>
-  );
-}
-
 function RegisterModal({ comp, onClose }) {
   const { t } = useLang();
   const r = t.register;
   const { session, user, addProfile } = useSession();
   const token = getAuthToken(session);
   const [stage, setStage] = useState("form");
-  const [form, setForm] = useState({ name: "", email: "", cat: comp ? comp.cats[0] : "" });
+  const [form, setForm] = useState({ cat: comp ? comp.cats[0] : "" });
   // Backend skill-profile check for the clicked tournament's sport slug.
   const [profileState, setProfileState] = useState("loading"); // loading | found | missing | error
   const [checkKey, setCheckKey] = useState(0);
@@ -59,7 +49,9 @@ function RegisterModal({ comp, onClose }) {
   }, [sportSlug, token, checkKey]);
   if (!comp) return null;
   const hasProfile = profileState === "found";
-  const valid = hasProfile && form.name.trim() && /\S+@\S+\.\S+/.test(form.email);
+  // Registration is gated on having a skill profile for this sport — the
+  // signed-in user's name/email are taken from their account, not re-entered.
+  const valid = hasProfile && !!form.cat;
   const sportName = t.data.sports[comp.sport] || comp.sport;
 
   // "Create profile" launches the chat-style onboarding instead of a plain form.
@@ -68,7 +60,7 @@ function RegisterModal({ comp, onClose }) {
       <ProfileOnboarding
         sport={comp.sport}
         sportLabel={sportName}
-        name={form.name || user?.name || ""}
+        name={user?.name || ""}
         token={token}
         onClose={() => setOnboarding(false)}
         onSubmit={(answers) => submitProfileAnswers(comp.sport, answers, token)}
@@ -77,7 +69,7 @@ function RegisterModal({ comp, onClose }) {
           // flip the modal to "found".
           addProfile({
             sport: comp.sport,
-            displayName: form.name || user?.name || "",
+            displayName: user?.name || "",
             answers,
             division: rank?.division?.key,
             tier: rank?.tier,
@@ -104,8 +96,6 @@ function RegisterModal({ comp, onClose }) {
             <h3 className="font-display mt-1.5 text-[22px] font-700 leading-snug text-ink-900">{comp.title}</h3>
             <div className="mt-1 text-[13.5px] text-ink-500">{t.data.locations[comp.location]} · {comp.date} · {comp.distance}</div>
             <div className="mt-5 space-y-3">
-              <Field label={r.nameLbl} value={form.name} onChange={(v) => setForm({ ...form, name: v })} placeholder={r.namePlaceholder} />
-              <Field label={r.emailLbl} type="email" value={form.email} onChange={(v) => setForm({ ...form, email: v })} placeholder="alex@email.com" />
               {profileState === "loading" && (
                 <div className="flex items-center gap-2 py-1 text-[13px] text-ink-500">
                   <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-ink-200 border-t-accent" />
@@ -114,6 +104,10 @@ function RegisterModal({ comp, onClose }) {
               )}
               {profileState === "found" && (
                 <div>
+                  <div className="mb-3 flex items-center gap-1.5 text-[12.5px] font-600 text-[var(--accent-ink)]">
+                    <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 8l3.5 3.5L13 5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                    {sportName} profile ready
+                  </div>
                   <label className="font-mono text-[11px] uppercase tracking-wide text-ink-300">{r.categoryLbl}</label>
                   <div className="mt-1.5 flex flex-wrap gap-2">
                     {comp.cats.map((c) => (
@@ -123,17 +117,16 @@ function RegisterModal({ comp, onClose }) {
                       </button>
                     ))}
                   </div>
-                  <div className="mt-2.5 flex items-center gap-1.5 text-[12.5px] font-500 text-[var(--accent-ink)]">
-                    <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 8l3.5 3.5L13 5" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                    {sportName} profile ready
-                  </div>
                 </div>
               )}
               {profileState === "missing" && (
                 <div className="rounded-2xl border border-dashed border-accent/40 bg-[var(--accent-soft)] p-4 text-center">
-                  <p className="text-[14px] font-600 text-ink-900">No {sportName} profile yet</p>
-                  <p className="mt-1 text-[13px] leading-relaxed text-ink-500">Set up a quick profile so we can match you to the right category.</p>
-                  <Btn variant="dark" size="md" className="mt-3.5 w-full justify-center" onClick={() => setOnboarding(true)}>Create profile</Btn>
+                  <span className="mx-auto grid h-9 w-9 place-items-center rounded-full bg-white text-[var(--accent-ink)] shadow-sm">
+                    <svg viewBox="0 0 20 20" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth="1.7"><rect x="4" y="8.5" width="12" height="8" rx="2" /><path d="M7 8.5V6a3 3 0 0 1 6 0v2.5" strokeLinecap="round" /></svg>
+                  </span>
+                  <p className="mt-2.5 text-[14px] font-700 text-ink-900">Create your {sportName} profile first</p>
+                  <p className="mt-1 text-[13px] leading-relaxed text-ink-500">Registration unlocks once you set up a quick skill profile so we can match you to the right category.</p>
+                  <Btn variant="dark" size="md" className="mt-3.5 w-full justify-center" onClick={() => setOnboarding(true)}>Create {sportName} profile</Btn>
                 </div>
               )}
               {profileState === "error" && (
@@ -143,9 +136,16 @@ function RegisterModal({ comp, onClose }) {
                 </div>
               )}
             </div>
-            <div className="mt-6 flex items-center justify-between border-t border-ink-100 pt-4">
-              <div><span className="font-display text-[22px] font-700 text-ink-900">£{comp.price}</span><span className="ml-1 text-[12px] text-ink-500">{r.entry}</span></div>
-              <Btn variant="primary" size="md" disabled={!valid} onClick={() => setStage("done")}>{r.confirmCta}</Btn>
+            <div className="mt-6 border-t border-ink-100 pt-4">
+              <div className="flex items-center justify-between">
+                <div><span className="font-display text-[22px] font-700 text-ink-900">£{comp.price}</span><span className="ml-1 text-[12px] text-ink-500">{r.entry}</span></div>
+                <Btn variant="primary" size="md" disabled={!valid} onClick={() => setStage("done")}>{r.confirmCta}</Btn>
+              </div>
+              {!hasProfile && (
+                <p className="mt-2.5 text-right text-[12px] text-ink-400">
+                  {profileState === "missing" ? `Create your ${sportName} profile to register` : "Complete the check above to register"}
+                </p>
+              )}
             </div>
           </div>
         ) : (
@@ -154,10 +154,10 @@ function RegisterModal({ comp, onClose }) {
               <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" /></svg>
             </div>
             <h3 className="font-display mt-4 text-[22px] font-700 text-ink-900">
-              {r.successTitleFn(form.name.split(" ")[0] || (t === t ? "athlete" : "атлет"))}
+              {r.successTitleFn((user?.name || "").split(" ")[0] || "athlete")}
             </h3>
             <p className="mx-auto mt-2 max-w-xs text-[14.5px] leading-relaxed text-ink-500">
-              {r.successBodyFn(comp.title, t.data.categories[form.cat], form.email)}
+              {r.successBodyFn(comp.title, t.data.categories[form.cat], user?.email || "")}
             </p>
             <Btn variant="dark" size="md" className="mt-6" onClick={onClose}>{r.doneCta}</Btn>
           </div>
