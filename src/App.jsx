@@ -9,7 +9,7 @@ import { AuthPage } from './components/auth';
 import { ProfileModal } from './components/profile';
 import { ProfileOnboarding } from './components/onboarding';
 import { AdminApp } from './admin/AdminApp';
-import { getProfile, submitProfileAnswers } from './lib/api';
+import { getProfile, submitProfileAnswers, registerForTournament } from './lib/api';
 import { getAuthToken } from './lib/auth';
 
 const TWEAK_DEFAULTS = {
@@ -29,6 +29,21 @@ function RegisterModal({ comp, onClose }) {
   const [profileState, setProfileState] = useState("loading"); // loading | found | missing | error
   const [checkKey, setCheckKey] = useState(0);
   const [onboarding, setOnboarding] = useState(false); // chat-style profile builder
+  const [registerState, setRegisterState] = useState("idle"); // idle | submitting | error
+
+  // Confirm registration: POST /tournaments/:id/register, then show the success
+  // screen. The signed-in user is identified by the bearer token.
+  const submitRegistration = async () => {
+    if (registerState === "submitting") return;
+    setRegisterState("submitting");
+    try {
+      await registerForTournament(comp.id, token);
+      setRegisterState("idle");
+      setStage("done");
+    } catch {
+      setRegisterState("error");
+    }
+  };
   useEffect(() => {
     const onKey = (e) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
@@ -139,12 +154,17 @@ function RegisterModal({ comp, onClose }) {
             <div className="mt-6 border-t border-ink-100 pt-4">
               <div className="flex items-center justify-between">
                 <div><span className="font-display text-[22px] font-700 text-ink-900">£{comp.price}</span><span className="ml-1 text-[12px] text-ink-500">{r.entry}</span></div>
-                <Btn variant="primary" size="md" disabled={!valid} onClick={() => setStage("done")}>{r.confirmCta}</Btn>
+                <Btn variant="primary" size="md" disabled={!valid || registerState === "submitting"} onClick={submitRegistration}>
+                  {registerState === "submitting" ? "Registering…" : r.confirmCta}
+                </Btn>
               </div>
               {!hasProfile && (
                 <p className="mt-2.5 text-right text-[12px] text-ink-400">
                   {profileState === "missing" ? `Create your ${sportName} profile to register` : "Complete the check above to register"}
                 </p>
+              )}
+              {registerState === "error" && (
+                <p className="mt-2.5 text-right text-[12px] font-500 text-red-500">Couldn't register just now. Please try again.</p>
               )}
             </div>
           </div>

@@ -32,6 +32,13 @@ export function createTournament(payload, token) {
   return post('/tournaments', payload, token);
 }
 
+/* POST /tournaments/:id/register — register the signed-in user for a tournament,
+   e.g. POST /tournaments/<uuid>/register with an Authorization: Bearer <idToken>
+   header. Requires a token; the user is identified from it, so no body is sent. */
+export function registerForTournament(tournamentId, token) {
+  return post(`/tournaments/${encodeURIComponent(tournamentId)}/register`, undefined, token);
+}
+
 /* GET /tournaments — list all tournaments (public). */
 export async function listTournaments() {
   const API_BASE = import.meta.env.VITE_API_BASE || '';
