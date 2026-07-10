@@ -332,6 +332,7 @@ export const translations = {
         thRevenue:    "Revenue",
         manage:       "Manage",
         empty:        "No competitions found.",
+        freePlacesFn: (n) => `${n} place${n === 1 ? "" : "s"} free`,
       },
 
       registrations: {
@@ -346,6 +347,7 @@ export const translations = {
         noTournaments:    "No tournaments",
         activeWord:  "active",
         capacityWord:"Capacity",
+        freePlacesWord:"Free places",
         empty:       "No registrations for this event yet.",
         withdraw:    "Withdraw",
         reinstate:   "Reinstate",
@@ -366,6 +368,7 @@ export const translations = {
       manage: {
         fallbackTitle:  "Tournament",
         registeredFn:   (n) => `${n} registered`,
+        freePlacesLbl:  "Free places available",
         statusLbl:      "Status",
         reopen:         "Re-open",
         terminal:       "This status is terminal — no further transitions.",
@@ -480,6 +483,7 @@ export const translations = {
 
     card: {
       spotsLeftFn: (n) => `${n} spot${n === 1 ? "" : "s"} left`,
+      openEntry:   "Open entry",
       entryLbl:    "entry",
       registerBtn: "Register",
     },
@@ -838,6 +842,7 @@ export const translations = {
         thRevenue:    "Выручка",
         manage:       "Управлять",
         empty:        "Соревнования не найдены.",
+        freePlacesFn: (n) => `${n} ${ruForm(n, "место", "места", "мест")} свободно`,
       },
 
       registrations: {
@@ -852,6 +857,7 @@ export const translations = {
         noTournaments:    "Нет турниров",
         activeWord:  "активных",
         capacityWord:"Вместимость",
+        freePlacesWord:"Свободных мест",
         empty:       "На это мероприятие пока нет регистраций.",
         withdraw:    "Снять",
         reinstate:   "Восстановить",
@@ -872,6 +878,7 @@ export const translations = {
       manage: {
         fallbackTitle:  "Турнир",
         registeredFn:   (n) => `${n} ${ruForm(n, "участник", "участника", "участников")}`,
+        freePlacesLbl:  "Свободных мест",
         statusLbl:      "Статус",
         reopen:         "Открыть заново",
         terminal:       "Это финальный статус — дальнейшие переходы недоступны.",
@@ -986,6 +993,7 @@ export const translations = {
 
     card: {
       spotsLeftFn: (n) => `${n} ${ruForm(n, "место", "места", "мест")} осталось`,
+      openEntry:   "Свободная запись",
       entryLbl:    "взнос",
       registerBtn: "Регистрация",
     },

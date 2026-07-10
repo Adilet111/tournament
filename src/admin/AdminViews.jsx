@@ -186,8 +186,9 @@ export function Competitions({ setView }) {
   const reload = () => setReloadKey((k) => k + 1);
 
   const rows = tournaments.map((tr) => {
-    const registered = tr.registeredCount ?? tr.registered ?? null;
+    const registered = tr.registeredCount ?? tr.occupiedPlaces ?? tr.registered ?? null;
     const capacity = tr.capacity ?? null;
+    const freePlaces = tr.freePlaces ?? (capacity != null && registered != null ? Math.max(0, capacity - registered) : null);
     return {
       raw: tr,
       id: tr.id,
@@ -198,6 +199,7 @@ export function Competitions({ setView }) {
       status: tr.status,
       capacity,
       registered,
+      freePlaces,
       fill: registered != null && capacity ? Math.round((registered / capacity) * 100) : null,
     };
   });
@@ -243,6 +245,7 @@ export function Competitions({ setView }) {
                 <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-ink-50 md:w-32">
                   <div className="h-full rounded-full bg-accent" style={{ width: (c.fill ?? 0) + '%' }} />
                 </div>
+                {c.freePlaces != null && <div className="mt-1 text-[11.5px] text-emerald-600">{c0.freePlacesFn(c.freePlaces)}</div>}
               </div>
               <div className="flex gap-2">
                 <Btn variant="outline" size="sm" onClick={() => setManaging(c.raw)}>{c0.manage}</Btn>
@@ -292,7 +295,9 @@ function ManageTournament({ tournament, token, sportName, onClose, onChanged }) 
   }, [tournament.id, token]);
 
   const status = detail.status;
-  const registered = detail.registeredCount ?? detail.registered ?? 0;
+  const registered = detail.registeredCount ?? detail.occupiedPlaces ?? detail.registered ?? 0;
+  // Prefer the backend's freePlaces; fall back to capacity − registered.
+  const freePlaces = detail.freePlaces ?? (detail.capacity != null ? Math.max(0, detail.capacity - registered) : null);
   const nextStatuses = ALLOWED_TRANSITIONS[status] || [];
 
   const num = (v) => (v === '' || v == null ? null : Number(v));
@@ -348,6 +353,14 @@ function ManageTournament({ tournament, token, sportName, onClose, onChanged }) 
   return (
     <Modal title={detail.title || m.fallbackTitle} sub={`${sportName ?? ''} · ${m.registeredFn(registered)}`} onClose={onClose}>
       <div className="space-y-6">
+        {/* free places available */}
+        {freePlaces != null && (
+          <div className="flex items-center gap-2 rounded-xl bg-ink-50 px-3.5 py-2.5">
+            <span className="font-mono text-[11px] uppercase tracking-wide text-ink-300">{m.freePlacesLbl}</span>
+            <span className="ml-auto font-display text-[18px] font-700 text-ink-900">{freePlaces}{detail.capacity != null ? <span className="ml-1 font-sans text-[12px] font-400 text-ink-400">/ {detail.capacity}</span> : null}</span>
+          </div>
+        )}
+
         {/* lifecycle */}
         <section>
           <div className="flex items-center justify-between">
@@ -512,6 +525,7 @@ export function Registrations() {
         <span className="rounded-full bg-ink-50 px-3 py-1.5 text-ink-700"><b className="font-700 text-ink-900">{rows.length}</b> {rg.regWordFn(rows.length)}</span>
         <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-emerald-700"><b className="font-700">{registeredCount}</b> {rg.activeWord}</span>
         {selected?.capacity != null && <span className="rounded-full bg-ink-50 px-3 py-1.5 text-ink-700">{rg.capacityWord} <b className="font-700 text-ink-900">{selected.capacity}</b></span>}
+        {selected?.freePlaces != null && <span className="rounded-full bg-ink-50 px-3 py-1.5 text-ink-700">{rg.freePlacesWord} <b className="font-700 text-ink-900">{selected.freePlaces}</b></span>}
       </div>
 
       {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-[13.5px] text-red-700">{error}</div>}

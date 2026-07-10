@@ -30,7 +30,9 @@ const normalizeT = (t, slugMap) => ({
   window: computeWindow(t.startsAt),
   date: t.startsAt ? new Date(t.startsAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—',
   price: t.entryFee ?? 0,
-  spots: t.capacity ?? 0,
+  // Free places left. null capacity => uncapped (freePlaces also null).
+  spots: t.freePlaces ?? (t.capacity != null ? Math.max(0, t.capacity - (t.occupiedPlaces ?? 0)) : null),
+  capacity: t.capacity ?? null,
   cats: computeCats(t.minRating ?? 0, t.maxRating ?? 3000),
   distance: '',
   currency: t.currency || 'KZT',
@@ -66,7 +68,8 @@ function useTournaments() {
 /* ---- CompetitionCard ---- */
 function CompetitionCard({ c, onRegister }) {
   const { t } = useLang();
-  const lowSpots = c.spots <= 15;
+  const uncapped = c.spots == null;
+  const lowSpots = !uncapped && c.spots <= 15;
   return (
     <article className="group flex flex-col overflow-hidden rounded-2xl border border-ink-100 bg-white transition-all hover:-translate-y-1 hover:border-ink-200 hover:shadow-xl">
       <div className="ph relative h-36">
@@ -74,7 +77,7 @@ function CompetitionCard({ c, onRegister }) {
         <div className="absolute left-3 top-3"><span className="rounded-full bg-white/90 px-2.5 py-1 backdrop-blur"><SportTag sport={c.sport} /></span></div>
         <div className="absolute right-3 top-3">
           <Pill tone={lowSpots ? "accent" : "default"} className="!bg-white/90 backdrop-blur">
-            {t.card.spotsLeftFn(c.spots)}
+            {uncapped ? t.card.openEntry : t.card.spotsLeftFn(c.spots)}
           </Pill>
         </div>
       </div>
