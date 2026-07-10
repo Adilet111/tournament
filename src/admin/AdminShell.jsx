@@ -1,5 +1,6 @@
 /* Rally Admin — shared primitives + sidebar/topbar shell. */
 import { useLang } from '../LangContext';
+import { LangSwitcher } from '../components/primitives';
 
 export const fmt = (n) => '£' + n.toLocaleString('en-GB');
 
@@ -159,6 +160,7 @@ export function Topbar({ title, sub, view, setView, nav }) {
           <Svg d={Icon.search} className="h-4 w-4 text-ink-300" />
           <input placeholder={t.admin.searchPlaceholder} className="w-36 bg-transparent text-[14px] text-ink-900 outline-none placeholder:text-ink-300" />
         </label>
+        <LangSwitcher />
         <button className="relative grid h-10 w-10 place-items-center rounded-full border border-ink-100 text-ink-700 hover:bg-ink-50">
           <Svg d={Icon.bell} className="h-[18px] w-[18px]" />
           <span className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-accent" />

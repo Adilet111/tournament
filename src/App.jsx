@@ -102,7 +102,7 @@ function RegisterModal({ comp, onClose }) {
       <div className="absolute inset-0 bg-ink-900/40 backdrop-blur-sm animate-[fadein_.2s_ease]" />
       <div className="relative w-full max-w-md overflow-hidden rounded-3xl border border-ink-100 bg-white shadow-2xl" onMouseDown={(e) => e.stopPropagation()}>
         <div className="ph relative h-28">
-          <span className="ph-label absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">{t.data.sports[comp.sport]?.toLowerCase()} photo</span>
+          <span className="ph-label absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">{t.data.sports[comp.sport]?.toLowerCase()} {r.photoLabel}</span>
           <button onClick={onClose} className="absolute right-3 top-3 grid h-8 w-8 place-items-center rounded-full bg-white/90 text-ink-700 backdrop-blur hover:bg-white" aria-label="Close">✕</button>
         </div>
         {stage === "form" ? (
@@ -114,14 +114,14 @@ function RegisterModal({ comp, onClose }) {
               {profileState === "loading" && (
                 <div className="flex items-center gap-2 py-1 text-[13px] text-ink-500">
                   <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-ink-200 border-t-accent" />
-                  Checking your {sportName.toLowerCase()} profile…
+                  {r.checkingFn(sportName.toLowerCase())}
                 </div>
               )}
               {profileState === "found" && (
                 <div>
                   <div className="mb-3 flex items-center gap-1.5 text-[12.5px] font-600 text-[var(--accent-ink)]">
                     <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 8l3.5 3.5L13 5" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                    {sportName} profile ready
+                    {r.profileReadyFn(sportName)}
                   </div>
                   <label className="font-mono text-[11px] uppercase tracking-wide text-ink-300">{r.categoryLbl}</label>
                   <div className="mt-1.5 flex flex-wrap gap-2">
@@ -139,15 +139,15 @@ function RegisterModal({ comp, onClose }) {
                   <span className="mx-auto grid h-9 w-9 place-items-center rounded-full bg-white text-[var(--accent-ink)] shadow-sm">
                     <svg viewBox="0 0 20 20" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth="1.7"><rect x="4" y="8.5" width="12" height="8" rx="2" /><path d="M7 8.5V6a3 3 0 0 1 6 0v2.5" strokeLinecap="round" /></svg>
                   </span>
-                  <p className="mt-2.5 text-[14px] font-700 text-ink-900">Create your {sportName} profile first</p>
-                  <p className="mt-1 text-[13px] leading-relaxed text-ink-500">Registration unlocks once you set up a quick skill profile so we can match you to the right category.</p>
-                  <Btn variant="dark" size="md" className="mt-3.5 w-full justify-center" onClick={() => setOnboarding(true)}>Create {sportName} profile</Btn>
+                  <p className="mt-2.5 text-[14px] font-700 text-ink-900">{r.createFirstFn(sportName)}</p>
+                  <p className="mt-1 text-[13px] leading-relaxed text-ink-500">{r.unlockNote}</p>
+                  <Btn variant="dark" size="md" className="mt-3.5 w-full justify-center" onClick={() => setOnboarding(true)}>{r.createProfileFn(sportName)}</Btn>
                 </div>
               )}
               {profileState === "error" && (
                 <div className="rounded-2xl border border-dashed border-ink-200 bg-ink-50 p-4 text-center">
-                  <p className="text-[13.5px] text-ink-500">{token ? "Couldn't check your profile." : "Sign in to check your profile."}</p>
-                  <button onClick={() => { setProfileState("loading"); setCheckKey((k) => k + 1); }} className="mt-2 text-[13.5px] font-600 text-accent hover:underline">Retry</button>
+                  <p className="text-[13.5px] text-ink-500">{token ? r.checkFailed : r.signInToCheck}</p>
+                  <button onClick={() => { setProfileState("loading"); setCheckKey((k) => k + 1); }} className="mt-2 text-[13.5px] font-600 text-accent hover:underline">{r.retry}</button>
                 </div>
               )}
             </div>
@@ -155,16 +155,16 @@ function RegisterModal({ comp, onClose }) {
               <div className="flex items-center justify-between">
                 <div><span className="font-display text-[22px] font-700 text-ink-900">£{comp.price}</span><span className="ml-1 text-[12px] text-ink-500">{r.entry}</span></div>
                 <Btn variant="primary" size="md" disabled={!valid || registerState === "submitting"} onClick={submitRegistration}>
-                  {registerState === "submitting" ? "Registering…" : r.confirmCta}
+                  {registerState === "submitting" ? r.registering : r.confirmCta}
                 </Btn>
               </div>
               {!hasProfile && (
                 <p className="mt-2.5 text-right text-[12px] text-ink-400">
-                  {profileState === "missing" ? `Create your ${sportName} profile to register` : "Complete the check above to register"}
+                  {profileState === "missing" ? r.createToRegisterFn(sportName) : r.completeCheck}
                 </p>
               )}
               {registerState === "error" && (
-                <p className="mt-2.5 text-right text-[12px] font-500 text-red-500">Couldn't register just now. Please try again.</p>
+                <p className="mt-2.5 text-right text-[12px] font-500 text-red-500">{r.registerFailed}</p>
               )}
             </div>
           </div>
@@ -174,7 +174,7 @@ function RegisterModal({ comp, onClose }) {
               <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" /></svg>
             </div>
             <h3 className="font-display mt-4 text-[22px] font-700 text-ink-900">
-              {r.successTitleFn((user?.name || "").split(" ")[0] || "athlete")}
+              {r.successTitleFn((user?.name || "").split(" ")[0] || r.fallbackAthlete)}
             </h3>
             <p className="mx-auto mt-2 max-w-xs text-[14.5px] leading-relaxed text-ink-500">
               {r.successBodyFn(comp.title, t.data.categories[form.cat], user?.email || "")}

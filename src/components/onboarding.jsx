@@ -3,9 +3,9 @@
    hands the collected answers back via onComplete. */
 import { useState, useEffect, useRef } from 'react';
 import { getSportQuestions } from '../lib/api';
+import { useLang } from '../LangContext';
 
 const MASCOT = { name: 'Kico', emoji: '⚽' };
-const ACKS = ['Nice one!', 'Great choice!', 'Love that!', 'Good stuff!', 'Solid pick!'];
 
 /* ---- API response → chat shape normalizers ----
    Questions come from GET /sports/:sport/questions. The backend shape isn't
@@ -48,9 +48,9 @@ function normalizeQuestions(raw) {
 function wait(ms) { return new Promise((r) => setTimeout(r, ms)); }
 let uidSeq = 0;
 const uid = () => `m${Date.now()}_${uidSeq++}`;
-// Kept at module scope (not inside the component) so the randomness lives
-// outside render — see react-hooks/purity.
-const randomAck = () => ACKS[Math.floor(Math.random() * ACKS.length)];
+// Pick a random acknowledgement from the (localised) list. Called only from
+// async event handlers, never during render.
+const randomAck = (acks) => acks[Math.floor(Math.random() * acks.length)];
 const typingDelay = () => 550 + Math.random() * 350;
 
 /* ---- rank reveal (presentation only) ----
@@ -137,16 +137,18 @@ function UserBubble({ text }) {
 }
 
 function StepDivider({ n }) {
+  const { t } = useLang();
   return (
     <div className="my-1 flex items-center gap-3 chat-in">
       <span className="h-px flex-1 bg-white/10" />
-      <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-white/35">Step {n}</span>
+      <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-white/35">{t.onboarding.step} {n}</span>
       <span className="h-px flex-1 bg-white/10" />
     </div>
   );
 }
 
 function RankReveal({ result, onContinue }) {
+  const { t } = useLang();
   const { division, tier, rating } = result;
   const [show, setShow] = useState(false);
   useEffect(() => { const t = setTimeout(() => setShow(true), 80); return () => clearTimeout(t); }, []);
@@ -164,20 +166,20 @@ function RankReveal({ result, onContinue }) {
           </svg>
         </div>
         <div>
-          <div className="font-mono text-[12px] uppercase tracking-[0.16em] text-white/40">Your division</div>
+          <div className="font-mono text-[12px] uppercase tracking-[0.16em] text-white/40">{t.onboarding.yourDivision}</div>
           <div className="mt-1 flex items-baseline justify-center gap-2">
             <span className="font-display text-[28px] font-700" style={{ color: division.color }}>{division.label}</span>
             {tier && <span className="font-display text-[20px] font-700 text-white/50">{tier}</span>}
           </div>
         </div>
         <div className="flex items-center gap-2 rounded-full bg-white/[0.06] px-4 py-2">
-          <span className="font-mono text-[13px] text-white/50">Rating</span>
+          <span className="font-mono text-[13px] text-white/50">{t.onboarding.rating}</span>
           <span className="text-[16px] font-700 text-white">{rating.toLocaleString()}</span>
         </div>
       </div>
       <button onClick={onContinue}
         className="w-full rounded-2xl bg-[var(--accent)] px-5 py-3.5 text-[15px] font-600 text-white transition-all hover:brightness-110 active:translate-y-px">
-        Continue to registration
+        {t.onboarding.continueToReg}
       </button>
       <style>{`
         .rank-badge-in { opacity: 0; transform: scale(.82) translateY(10px); transition: opacity .5s ease, transform .5s cubic-bezier(.2,1.4,.4,1); }
@@ -199,6 +201,8 @@ function OptionPill({ label, onClick, disabled }) {
 }
 
 export function ProfileOnboarding({ sport, sportLabel, name, token, onClose, onComplete, onSubmit }) {
+  const { t } = useLang();
+  const ob = t.onboarding;
   const [questions, setQuestions] = useState([]); // fetched from the API
   const [loadState, setLoadState] = useState('loading'); // loading | ready | error
   const [loadKey, setLoadKey] = useState(0); // bumped to retry the fetch
@@ -261,7 +265,7 @@ export function ProfileOnboarding({ sport, sportLabel, name, token, onClose, onC
     runningRef.current = true;
     (async () => {
       await wait(400);
-      await sayBot(`Hey! I'm ${MASCOT.name} ${MASCOT.emoji} — let's set up your ${sportLabel || 'sport'} profile.`);
+      await sayBot(ob.greetingFn(MASCOT.name, MASCOT.emoji, sportLabel || ob.fallbackSport));
       await askQuestion(0);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -290,14 +294,14 @@ export function ProfileOnboarding({ sport, sportLabel, name, token, onClose, onC
     answersRef.current[questions[qIndex].id] = opt.value;
     setItems((m) => [...m, { type: 'user', id: uid(), text: opt.label }]);
     await wait(280);
-    await sayBot(randomAck());
+    await sayBot(randomAck(ob.acks));
     const next = qIndex + 1;
     if (next < questions.length) {
       await wait(150);
       await askQuestion(next);
     } else {
       await wait(250);
-      await sayBot(`You're all set${name ? ', ' + name.split(' ')[0] : ''}! Let's find your level.`);
+      await sayBot(ob.allSetFn(name ? ', ' + name.split(' ')[0] : ''));
       await wait(200);
       await finish();
     }
@@ -328,7 +332,7 @@ export function ProfileOnboarding({ sport, sportLabel, name, token, onClose, onC
               <MascotAvatar size={28} />
               <div className="flex items-center gap-2 rounded-2xl rounded-bl-md bg-[#1c2230] px-4 py-3 text-[14px] text-white/70">
                 <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/20 border-t-[var(--accent)]" />
-                Loading your questions…
+                {ob.loadingQuestions}
               </div>
             </div>
           )}
@@ -336,16 +340,16 @@ export function ProfileOnboarding({ sport, sportLabel, name, token, onClose, onC
             <div className="mt-6 flex flex-col items-center gap-4 py-6 text-center chat-in">
               <span className="grid h-14 w-14 place-items-center rounded-full bg-white/5 text-[26px]">😕</span>
               <p className="max-w-xs text-[14.5px] leading-relaxed text-white/70">
-                Couldn't load the {(sportLabel || 'sport').toLowerCase()} questions right now.
+                {ob.loadErrorFn((sportLabel || ob.fallbackSport).toLowerCase())}
               </p>
               <div className="flex gap-2">
                 <button onClick={() => { setLoadState('loading'); setLoadKey((k) => k + 1); }}
                   className="rounded-2xl bg-[var(--accent)] px-5 py-2.5 text-[14px] font-600 text-white transition-all hover:brightness-110">
-                  Try again
+                  {ob.tryAgain}
                 </button>
                 <button onClick={() => onClose()}
                   className="rounded-2xl border border-white/15 px-5 py-2.5 text-[14px] font-600 text-white/80 transition-all hover:bg-white/10">
-                  Close
+                  {ob.close}
                 </button>
               </div>
             </div>
@@ -365,10 +369,10 @@ export function ProfileOnboarding({ sport, sportLabel, name, token, onClose, onC
           )}
           {scoreState === 'error' && !done && (
             <div className="mt-4 flex flex-col items-center gap-3 py-3 text-center chat-in">
-              <p className="max-w-xs text-[14.5px] leading-relaxed text-white/70">Couldn't score your answers right now.</p>
+              <p className="max-w-xs text-[14.5px] leading-relaxed text-white/70">{ob.scoreError}</p>
               <button onClick={() => finish()}
                 className="rounded-2xl bg-[var(--accent)] px-5 py-2.5 text-[14px] font-600 text-white transition-all hover:brightness-110">
-                Try again
+                {ob.tryAgain}
               </button>
             </div>
           )}

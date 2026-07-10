@@ -59,7 +59,7 @@ function StatCard({ label, value, sub, accent }) {
   );
 }
 
-function MiniBars({ data }) {
+function MiniBars({ data, titleFn }) {
   const max = Math.max(...data.map((d) => d.v));
   return (
     <div className="flex items-end gap-2.5" style={{ height: 120 }}>
@@ -67,7 +67,7 @@ function MiniBars({ data }) {
         <div key={i} className="flex flex-1 flex-col items-center gap-2">
           <div className="flex w-full flex-1 items-end">
             <div className="w-full rounded-t-md bg-accent/85 transition-all hover:bg-accent"
-              style={{ height: Math.max(6, (d.v / max) * 100) + '%' }} title={d.v + ' registrations'} />
+              style={{ height: Math.max(6, (d.v / max) * 100) + '%' }} title={titleFn ? titleFn(d.v) : d.v} />
           </div>
           <span className="font-mono text-[10.5px] text-ink-400">{d.k}</span>
         </div>
@@ -105,7 +105,7 @@ export function Overview({ setView }) {
             </div>
             <Btn variant="ghost" size="sm" onClick={() => setView('registrations')}>{o.viewAll} <Svg d={Icon.arrow} className="h-4 w-4" /></Btn>
           </div>
-          <div className="mt-6"><MiniBars data={weekData} /></div>
+          <div className="mt-6"><MiniBars data={weekData} titleFn={o.barsTitleFn} /></div>
         </Card>
 
         <Card className="p-6">
@@ -210,7 +210,7 @@ export function Competitions({ setView }) {
             <button key={id} onClick={() => setFilter(id)}
               className={'rounded-full border px-3.5 py-1.5 text-[13.5px] font-600 capitalize transition-all ' +
                 (filter === id ? 'border-accent bg-accent text-white' : 'border-ink-100 bg-white text-ink-700 hover:border-ink-300')}>
-              {id === 'all' ? c0.filterAll : STATUS_LABEL[id]}
+              {id === 'all' ? c0.filterAll : (t.admin.status[id] || STATUS_LABEL[id])}
             </button>
           ))}
         </div>
@@ -222,9 +222,9 @@ export function Competitions({ setView }) {
           <span>{c0.thCompetition}</span><span>{c0.thStatus}</span><span>{c0.thCapacity}</span><span></span>
         </div>
         <div className="divide-y divide-ink-100">
-          {loading && <div className="px-6 py-5 text-[14px] text-ink-400">Loading…</div>}
+          {loading && <div className="px-6 py-5 text-[14px] text-ink-400">{t.admin.common.loading}</div>}
           {fetchError && <div className="px-6 py-5 text-[13.5px] text-red-500">{fetchError}</div>}
-          {!loading && !fetchError && rows.length === 0 && <div className="px-6 py-5 text-[14px] text-ink-400">No competitions found.</div>}
+          {!loading && !fetchError && rows.length === 0 && <div className="px-6 py-5 text-[14px] text-ink-400">{c0.empty}</div>}
           {rows.map((c) => (
             <div key={c.id} className="grid grid-cols-1 gap-3 px-6 py-4 md:grid-cols-[2.4fr_1fr_1.4fr_auto] md:items-center md:gap-4">
               <div className="flex items-center gap-3">
@@ -267,6 +267,9 @@ export function Competitions({ setView }) {
 
 /* ---- manage one tournament: edit fields, move status, delete ---- */
 function ManageTournament({ tournament, token, sportName, onClose, onChanged }) {
+  const { t } = useLang();
+  const m = t.admin.manage;
+  const statusLabel = (s) => t.admin.status[s] || STATUS_LABEL[s] || s;
   const [detail, setDetail] = useState(tournament);
   const [form, setForm] = useState({
     title: tournament.title ?? '',
@@ -306,12 +309,12 @@ function ManageTournament({ tournament, token, sportName, onClose, onChanged }) 
     if ((iso?.slice(0, 10) ?? null) !== (detail.startsAt ? detail.startsAt.slice(0, 10) : null)) patch.startsAt = iso;
     if (form.description !== (detail.description ?? '')) patch.description = form.description;
 
-    if (!Object.keys(patch).length) { setNotice('No changes to save.'); setError(null); return; }
+    if (!Object.keys(patch).length) { setNotice(m.noChanges); setError(null); return; }
     setBusy(true); setError(null); setNotice(null);
     try {
       const updated = await updateTournament(tournament.id, patch, token);
       setDetail((d) => ({ ...d, ...(updated || patch) }));
-      setNotice('Changes saved.');
+      setNotice(m.saved);
       onChanged?.();
     } catch (e) { setError(e.message); }
     finally { setBusy(false); }
@@ -322,7 +325,7 @@ function ManageTournament({ tournament, token, sportName, onClose, onChanged }) 
     try {
       const updated = await updateTournament(tournament.id, { status: next }, token);
       setDetail((d) => ({ ...d, ...(updated || {}), status: next }));
-      setNotice(`Status changed to ${STATUS_LABEL[next] || next}.`);
+      setNotice(m.statusChangedFn(statusLabel(next)));
       onChanged?.();
     } catch (e) { setError(e.message); }
     finally { setBusy(false); }
@@ -330,7 +333,7 @@ function ManageTournament({ tournament, token, sportName, onClose, onChanged }) 
 
   const remove = async () => {
     if (registered > 0) return;
-    if (!window.confirm('Delete this tournament permanently? This cannot be undone.')) return;
+    if (!window.confirm(m.deleteConfirm)) return;
     setBusy(true); setError(null);
     try {
       await deleteTournament(tournament.id, token);
@@ -343,60 +346,60 @@ function ManageTournament({ tournament, token, sportName, onClose, onChanged }) 
   const lbl = 'font-mono text-[11px] uppercase tracking-wide text-ink-300';
 
   return (
-    <Modal title={detail.title || 'Tournament'} sub={`${sportName ?? ''} · ${registered} registered`} onClose={onClose}>
+    <Modal title={detail.title || m.fallbackTitle} sub={`${sportName ?? ''} · ${m.registeredFn(registered)}`} onClose={onClose}>
       <div className="space-y-6">
         {/* lifecycle */}
         <section>
           <div className="flex items-center justify-between">
-            <span className={lbl}>Status</span>
+            <span className={lbl}>{m.statusLbl}</span>
             <StatusDot status={status} />
           </div>
           {nextStatuses.length ? (
             <div className="mt-2.5 flex flex-wrap gap-2">
               {nextStatuses.map((s) => (
                 <Btn key={s} variant={s === 'cancelled' ? 'outline' : 'dark'} size="sm" disabled={busy} onClick={() => move(s)}>
-                  {s === 'open' && status === 'closed' ? 'Re-open' : STATUS_LABEL[s]}
+                  {s === 'open' && status === 'closed' ? m.reopen : statusLabel(s)}
                 </Btn>
               ))}
             </div>
           ) : (
-            <p className="mt-2 text-[13px] text-ink-400">This status is terminal — no further transitions.</p>
+            <p className="mt-2 text-[13px] text-ink-400">{m.terminal}</p>
           )}
         </section>
 
         {/* editable fields */}
         <section className="space-y-4 border-t border-ink-100 pt-5">
           <div>
-            <span className={lbl}>Title</span>
+            <span className={lbl}>{m.titleLbl}</span>
             <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className={field} />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <span className={lbl}>Capacity</span>
+              <span className={lbl}>{m.capacityLbl}</span>
               <input type="number" value={form.capacity} onChange={(e) => setForm({ ...form, capacity: e.target.value })} placeholder="∞" className={field} />
             </div>
             <div>
-              <span className={lbl}>Entry fee</span>
+              <span className={lbl}>{m.entryFeeLbl}</span>
               <input type="number" value={form.entryFee} onChange={(e) => setForm({ ...form, entryFee: e.target.value })} placeholder="0" className={field} />
             </div>
             <div>
-              <span className={lbl}>Min rating</span>
-              <input type="number" value={form.minRating} onChange={(e) => setForm({ ...form, minRating: e.target.value })} placeholder="none" className={field} />
+              <span className={lbl}>{m.minRatingLbl}</span>
+              <input type="number" value={form.minRating} onChange={(e) => setForm({ ...form, minRating: e.target.value })} placeholder={m.nonePlaceholder} className={field} />
             </div>
             <div>
-              <span className={lbl}>Max rating</span>
-              <input type="number" value={form.maxRating} onChange={(e) => setForm({ ...form, maxRating: e.target.value })} placeholder="none" className={field} />
+              <span className={lbl}>{m.maxRatingLbl}</span>
+              <input type="number" value={form.maxRating} onChange={(e) => setForm({ ...form, maxRating: e.target.value })} placeholder={m.nonePlaceholder} className={field} />
             </div>
           </div>
           <div>
-            <span className={lbl}>Starts</span>
+            <span className={lbl}>{m.startsLbl}</span>
             <input type="date" value={form.startsAt} onChange={(e) => setForm({ ...form, startsAt: e.target.value })} className={field} />
           </div>
           <div>
-            <span className={lbl}>Description</span>
+            <span className={lbl}>{m.descriptionLbl}</span>
             <textarea rows={2} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className={field} />
           </div>
-          <Btn variant="primary" size="md" disabled={busy} onClick={saveFields}>{busy ? 'Saving…' : 'Save changes'}</Btn>
+          <Btn variant="primary" size="md" disabled={busy} onClick={saveFields}>{busy ? m.saving : m.saveChanges}</Btn>
         </section>
 
         {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-[13.5px] text-red-700">{error}</div>}
@@ -404,16 +407,16 @@ function ManageTournament({ tournament, token, sportName, onClose, onChanged }) 
 
         {/* danger zone */}
         <section className="border-t border-ink-100 pt-5">
-          <span className={lbl}>Danger zone</span>
+          <span className={lbl}>{m.dangerZone}</span>
           {registered > 0 ? (
             <p className="mt-1.5 text-[13px] leading-relaxed text-ink-500">
-              This tournament has {registered} registration{registered === 1 ? '' : 's'}, so it can't be deleted.
-              Use <b>Cancel</b> above to call it off while keeping participant history.
+              {m.hasRegsFn(registered)}{' '}
+              {m.useCancelPre}<b>{m.cancelWord}</b>{m.useCancelPost}
             </p>
           ) : (
             <div className="mt-2 flex items-center justify-between gap-3">
-              <p className="text-[13px] text-ink-500">No registrations — safe to delete permanently.</p>
-              <Btn variant="outline" size="sm" className="!border-red-200 !text-red-600 hover:!bg-red-50" disabled={busy} onClick={remove}>Delete</Btn>
+              <p className="text-[13px] text-ink-500">{m.safeDelete}</p>
+              <Btn variant="outline" size="sm" className="!border-red-200 !text-red-600 hover:!bg-red-50" disabled={busy} onClick={remove}>{t.admin.common.delete}</Btn>
             </div>
           )}
         </section>
@@ -478,7 +481,7 @@ export function Registrations() {
   const withdraw = (userId) => mutate(userId, () => updateRegistration(selId, userId, 'withdrawn', token));
   const reinstate = (userId) => mutate(userId, () => updateRegistration(selId, userId, 'registered', token));
   const remove = (userId) => {
-    if (!window.confirm('Remove this registration entirely? (Withdraw instead if you want to keep the record.)')) return;
+    if (!window.confirm(rg.removeConfirm)) return;
     mutate(userId, () => deleteRegistration(selId, userId, token));
   };
 
@@ -491,35 +494,35 @@ export function Registrations() {
           <label className="flex items-center gap-2 rounded-xl border border-ink-100 bg-white px-3">
             <span className="font-mono text-[11px] uppercase tracking-wide text-ink-300">{rg.event}</span>
             <select value={selId} onChange={(e) => setSelId(e.target.value)} className="bg-transparent py-2.5 text-[14px] font-500 text-ink-900 outline-none">
-              {tournaments.length === 0 && <option value="">No tournaments</option>}
+              {tournaments.length === 0 && <option value="">{rg.noTournaments}</option>}
               {tournaments.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
             </select>
           </label>
           <div className="flex gap-1.5">
-            {[['all', rg.filterAll], ['registered', 'Registered'], ['withdrawn', 'Withdrawn']].map(([id, l]) => (
+            {[['all', rg.filterAll], ['registered', rg.filterRegistered], ['withdrawn', rg.filterWithdrawn]].map(([id, l]) => (
               <button key={id} onClick={() => setStatusFilter(id)}
                 className={'rounded-full border px-3.5 py-2 text-[13.5px] font-600 ' + (statusFilter === id ? 'border-accent bg-accent text-white' : 'border-ink-100 bg-white text-ink-700 hover:border-ink-300')}>{l}</button>
             ))}
           </div>
         </div>
-        <Btn variant="dark" size="md" disabled={!selId} onClick={() => setAddOpen(true)}><Svg d={Icon.plus} className="h-4 w-4" /> Add participant</Btn>
+        <Btn variant="dark" size="md" disabled={!selId} onClick={() => setAddOpen(true)}><Svg d={Icon.plus} className="h-4 w-4" /> {rg.addParticipant}</Btn>
       </div>
 
       <div className="flex flex-wrap gap-3 text-[13.5px]">
         <span className="rounded-full bg-ink-50 px-3 py-1.5 text-ink-700"><b className="font-700 text-ink-900">{rows.length}</b> {rg.regWordFn(rows.length)}</span>
-        <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-emerald-700"><b className="font-700">{registeredCount}</b> active</span>
-        {selected?.capacity != null && <span className="rounded-full bg-ink-50 px-3 py-1.5 text-ink-700">Capacity <b className="font-700 text-ink-900">{selected.capacity}</b></span>}
+        <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-emerald-700"><b className="font-700">{registeredCount}</b> {rg.activeWord}</span>
+        {selected?.capacity != null && <span className="rounded-full bg-ink-50 px-3 py-1.5 text-ink-700">{rg.capacityWord} <b className="font-700 text-ink-900">{selected.capacity}</b></span>}
       </div>
 
       {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-[13.5px] text-red-700">{error}</div>}
 
       <Card className="overflow-hidden">
         <div className="hidden grid-cols-[2fr_1fr_1fr_1fr_auto] gap-4 border-b border-ink-100 px-6 py-3 font-mono text-[11px] uppercase tracking-wide text-ink-400 md:grid">
-          <span>{rg.thAthlete}</span><span>Rating</span><span>{rg.thStatus}</span><span>{rg.thWhen}</span><span></span>
+          <span>{rg.thAthlete}</span><span>{t.admin.common.rating}</span><span>{rg.thStatus}</span><span>{rg.thWhen}</span><span></span>
         </div>
         <div className="divide-y divide-ink-100">
-          {loading && <div className="px-6 py-5 text-[14px] text-ink-400">Loading…</div>}
-          {!loading && rows.length === 0 && <div className="px-6 py-5 text-[14px] text-ink-400">No registrations for this event yet.</div>}
+          {loading && <div className="px-6 py-5 text-[14px] text-ink-400">{t.admin.common.loading}</div>}
+          {!loading && rows.length === 0 && <div className="px-6 py-5 text-[14px] text-ink-400">{rg.empty}</div>}
           {rows.map((r) => {
             const st = r.status ?? 'registered';
             const busy = rowBusy === r.userId;
@@ -537,9 +540,9 @@ export function Registrations() {
                 <div className="font-mono text-[12.5px] text-ink-400">{fmtDate(r.registeredAt)}</div>
                 <div className="flex justify-end gap-2">
                   {st === 'registered'
-                    ? <Btn variant="outline" size="sm" disabled={busy} onClick={() => withdraw(r.userId)}>Withdraw</Btn>
-                    : <Btn variant="outline" size="sm" disabled={busy} onClick={() => reinstate(r.userId)}>Reinstate</Btn>}
-                  <button title="Remove" disabled={busy} onClick={() => remove(r.userId)}
+                    ? <Btn variant="outline" size="sm" disabled={busy} onClick={() => withdraw(r.userId)}>{rg.withdraw}</Btn>
+                    : <Btn variant="outline" size="sm" disabled={busy} onClick={() => reinstate(r.userId)}>{rg.reinstate}</Btn>}
+                  <button title={rg.removeTitle} disabled={busy} onClick={() => remove(r.userId)}
                     className="grid h-9 w-9 place-items-center rounded-full border border-ink-100 text-ink-400 hover:border-red-200 hover:bg-red-50 hover:text-red-500 disabled:opacity-40">✕</button>
                 </div>
               </div>
@@ -559,6 +562,8 @@ export function Registrations() {
 
 /* ---- admin add-participant (override; bypasses open/rating/capacity gates) ---- */
 function AddParticipant({ tournamentId, tournamentTitle, token, onClose, onAdded }) {
+  const { t } = useLang();
+  const ap = t.admin.addParticipant;
   const [userId, setUserId] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -573,20 +578,19 @@ function AddParticipant({ tournamentId, tournamentTitle, token, onClose, onAdded
   };
 
   return (
-    <Modal title="Add participant" sub={tournamentTitle} onClose={onClose} maxW="max-w-md">
+    <Modal title={ap.title} sub={tournamentTitle} onClose={onClose} maxW="max-w-md">
       <p className="text-[13.5px] leading-relaxed text-ink-500">
-        Register a player on their behalf. This bypasses the open-status, rating and capacity gates,
-        but the user must already have a profile in this tournament's sport.
+        {ap.desc}
       </p>
       <div className="mt-4">
-        <span className="font-mono text-[11px] uppercase tracking-wide text-ink-300">User ID</span>
+        <span className="font-mono text-[11px] uppercase tracking-wide text-ink-300">{ap.userIdLbl}</span>
         <input value={userId} onChange={(e) => setUserId(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') add(); }}
-          placeholder="user uuid" className={field} autoFocus />
+          placeholder={ap.userIdPlaceholder} className={field} autoFocus />
       </div>
       {error && <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-[13.5px] text-red-700">{error}</div>}
       <div className="mt-5 flex justify-end gap-2">
-        <Btn variant="ghost" size="md" onClick={onClose}>Cancel</Btn>
-        <Btn variant="primary" size="md" disabled={!userId.trim() || busy} onClick={add}>{busy ? 'Adding…' : 'Add participant'}</Btn>
+        <Btn variant="ghost" size="md" onClick={onClose}>{t.admin.common.cancel}</Btn>
+        <Btn variant="primary" size="md" disabled={!userId.trim() || busy} onClick={add}>{busy ? ap.adding : ap.add}</Btn>
       </div>
     </Modal>
   );
@@ -594,6 +598,8 @@ function AddParticipant({ tournamentId, tournamentTitle, token, onClose, onAdded
 
 /* ---- full user record: account, all sport profiles, tournament history ---- */
 function UserDetail({ userId, token, onClose }) {
+  const { t } = useLang();
+  const ud = t.admin.userDetail;
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
 
@@ -611,23 +617,23 @@ function UserDetail({ userId, token, onClose }) {
   const lbl = 'font-mono text-[11px] uppercase tracking-wide text-ink-300';
 
   return (
-    <Modal title={u?.name || 'User'} sub={u?.email} onClose={onClose}>
-      {!data && !error && <div className="text-[14px] text-ink-400">Loading…</div>}
+    <Modal title={u?.name || ud.fallbackTitle} sub={u?.email} onClose={onClose}>
+      {!data && !error && <div className="text-[14px] text-ink-400">{t.admin.common.loading}</div>}
       {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-[13.5px] text-red-700">{error}</div>}
       {data && (
         <div className="space-y-6">
           <section>
-            <span className={lbl}>Account</span>
+            <span className={lbl}>{ud.account}</span>
             <div className="mt-2 grid grid-cols-2 gap-3 text-[14px]">
-              <div><div className="text-ink-400 text-[12px]">Role</div><div className="font-500 capitalize text-ink-900">{u?.role ?? '—'}</div></div>
-              <div><div className="text-ink-400 text-[12px]">Joined</div><div className="font-500 text-ink-900">{fmtDate(u?.createdAt)}</div></div>
+              <div><div className="text-ink-400 text-[12px]">{ud.role}</div><div className="font-500 capitalize text-ink-900">{u?.role ?? '—'}</div></div>
+              <div><div className="text-ink-400 text-[12px]">{ud.joined}</div><div className="font-500 text-ink-900">{fmtDate(u?.createdAt)}</div></div>
             </div>
           </section>
 
           <section className="border-t border-ink-100 pt-5">
-            <span className={lbl}>Sport profiles ({profiles.length})</span>
+            <span className={lbl}>{ud.profilesFn(profiles.length)}</span>
             <div className="mt-2 space-y-2">
-              {profiles.length === 0 && <div className="text-[13.5px] text-ink-400">No profiles.</div>}
+              {profiles.length === 0 && <div className="text-[13.5px] text-ink-400">{ud.noProfiles}</div>}
               {profiles.map((p, i) => (
                 <div key={i} className="flex items-center justify-between rounded-xl border border-ink-100 px-3.5 py-2.5">
                   <span className="text-[14px] font-600 capitalize text-ink-900">{p.sport ?? p.sportName ?? p.sportId ?? '—'}</span>
@@ -638,14 +644,14 @@ function UserDetail({ userId, token, onClose }) {
           </section>
 
           <section className="border-t border-ink-100 pt-5">
-            <span className={lbl}>Tournament history ({regs.length})</span>
+            <span className={lbl}>{ud.historyFn(regs.length)}</span>
             <div className="mt-2 space-y-2">
-              {regs.length === 0 && <div className="text-[13.5px] text-ink-400">No registrations.</div>}
+              {regs.length === 0 && <div className="text-[13.5px] text-ink-400">{ud.noRegs}</div>}
               {regs.map((r, i) => (
                 <div key={i} className="flex items-center justify-between gap-3 rounded-xl border border-ink-100 px-3.5 py-2.5">
                   <div className="min-w-0">
                     <div className="truncate text-[14px] font-600 text-ink-900">{r.tournamentTitle ?? r.title ?? r.tournamentId}</div>
-                    <div className="text-[12px] text-ink-400">{fmtDate(r.startsAt)}{r.tournamentStatus ? ' · ' + (STATUS_LABEL[r.tournamentStatus] || r.tournamentStatus) : ''}</div>
+                    <div className="text-[12px] text-ink-400">{fmtDate(r.startsAt)}{r.tournamentStatus ? ' · ' + (t.admin.status[r.tournamentStatus] || STATUS_LABEL[r.tournamentStatus] || r.tournamentStatus) : ''}</div>
                   </div>
                   <StatusDot status={r.status ?? 'registered'} />
                 </div>
@@ -763,6 +769,8 @@ export function Promotions() {
 
 /* ============================================================== SPORTS === */
 export function Sports() {
+  const { t } = useLang();
+  const sv = t.admin.sportsView;
   const { session } = useSession();
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -803,42 +811,42 @@ export function Sports() {
   return (
     <div className="space-y-5">
       <Card className="p-5 lg:p-6">
-        <h3 className="font-display text-[16px] font-700 text-ink-900">Add a sport</h3>
-        <p className="mt-0.5 text-[13.5px] text-ink-500">New sports become available when creating competitions.</p>
+        <h3 className="font-display text-[16px] font-700 text-ink-900">{sv.addTitle}</h3>
+        <p className="mt-0.5 text-[13.5px] text-ink-500">{sv.addSub}</p>
         <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-start">
           <div className="flex-1">
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') add(); }}
-              placeholder="e.g. Volleyball"
+              placeholder={sv.placeholder}
               className={field + (dupe ? ' border-red-300 focus:border-red-400' : '')} />
-            {dupe && <div className="mt-1.5 text-[12.5px] font-500 text-red-500">"{trimmed}" already exists.</div>}
+            {dupe && <div className="mt-1.5 text-[12.5px] font-500 text-red-500">{sv.existsFn(trimmed)}</div>}
             {addError && <div className="mt-1.5 text-[12.5px] font-500 text-red-500">{addError}</div>}
           </div>
           <Btn variant="dark" size="md" onClick={add} disabled={!valid || adding}>
-            <Svg d={Icon.plus} className="h-4 w-4" /> {adding ? 'Adding…' : 'Add sport'}
+            <Svg d={Icon.plus} className="h-4 w-4" /> {adding ? sv.adding : sv.add}
           </Btn>
         </div>
       </Card>
 
       <Card className="overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4">
-          <h3 className="font-display text-[17px] font-700 text-ink-900">All sports</h3>
+          <h3 className="font-display text-[17px] font-700 text-ink-900">{sv.allTitle}</h3>
           <span className="rounded-full bg-ink-50 px-3 py-1 text-[13px] font-600 text-ink-700">{list.length}</span>
         </div>
         <div className="grid grid-cols-[auto_1fr_1fr] gap-4 border-y border-ink-100 px-6 py-3 font-mono text-[11px] uppercase tracking-wide text-ink-400">
-          <span className="w-8">#</span><span>Sport</span><span>Slug</span>
+          <span className="w-8">#</span><span>{sv.thSport}</span><span>{sv.thSlug}</span>
         </div>
         <div className="divide-y divide-ink-100">
           {loading && (
-            <div className="px-6 py-5 text-[14px] text-ink-400">Loading…</div>
+            <div className="px-6 py-5 text-[14px] text-ink-400">{t.admin.common.loading}</div>
           )}
           {fetchError && (
             <div className="px-6 py-5 text-[13.5px] text-red-500">{fetchError}</div>
           )}
           {!loading && !fetchError && list.length === 0 && (
-            <div className="px-6 py-5 text-[14px] text-ink-400">No sports yet.</div>
+            <div className="px-6 py-5 text-[14px] text-ink-400">{sv.empty}</div>
           )}
           {list.map((s, i) => (
             <div key={s.slug ?? s.name} className="grid grid-cols-[auto_1fr_1fr] items-center gap-4 px-6 py-3.5">
