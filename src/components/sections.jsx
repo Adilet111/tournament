@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { SPORTS, LOCATIONS, sportLabel, categoryLabel } from '../data';
+import { SPORTS, LOCATIONS } from '../data';
 import { useLang } from '../LangContext';
 import { useSession } from '../SessionContext';
 import { Logo, Btn, Arrow, SportTag, Pill, LangSwitcher, useReveal, scrollToId } from './primitives';
@@ -17,7 +17,7 @@ function initials(name) {
 
 function UserMenu({ onCreateProfile }) {
   const { t } = useLang();
-  const { user, profiles, signOut, isAdmin } = useSession();
+  const { user, signOut, isAdmin } = useSession();
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   useEffect(() => {
@@ -41,19 +41,6 @@ function UserMenu({ onCreateProfile }) {
             <div className="text-[14px] font-600 text-ink-900">{name}</div>
             {user?.email && <div className="truncate text-[12.5px] text-ink-500">{user.email}</div>}
           </div>
-          {profiles.length > 0 && (
-            <div className="border-b border-ink-100 px-4 py-2.5">
-              <div className="font-mono text-[10.5px] uppercase tracking-wide text-ink-300">{t.account.yourProfiles}</div>
-              <ul className="mt-1.5 space-y-1">
-                {profiles.map((p) => (
-                  <li key={p.id} className="flex items-center justify-between text-[13.5px] text-ink-700">
-                    <span>{t.data.sports[p.sport] ?? sportLabel(p.sport)}</span>
-                    <span className="text-[12px] text-ink-400">{t.data.categories[p.category] ?? categoryLabel(p.category)}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
           <div className="p-2">
             <button onClick={() => { setOpen(false); onCreateProfile(); }}
               className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[14px] font-600 text-ink-900 hover:bg-ink-50">

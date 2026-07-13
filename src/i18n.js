@@ -248,7 +248,6 @@ export const translations = {
 
     account: {
       defaultName:   "Athlete",
-      yourProfiles:  "Your profiles",
       createProfile: "Create profile",
       admin:         "Admin",
       signOut:       "Sign out",
@@ -758,7 +757,6 @@ export const translations = {
 
     account: {
       defaultName:   "Атлет",
-      yourProfiles:  "Ваши профили",
       createProfile: "Создать профиль",
       admin:         "Админ",
       signOut:       "Выйти",
