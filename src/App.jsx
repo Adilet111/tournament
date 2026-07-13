@@ -11,6 +11,7 @@ import { ProfileOnboarding } from './components/onboarding';
 import { AdminApp } from './admin/AdminApp';
 import { ProfilePage } from './components/profilePage';
 import { getProfile, submitProfileAnswers, registerForTournament } from './lib/api';
+import { goHome } from './lib/nav';
 
 const TWEAK_DEFAULTS = {
   heroStyle: "split",
@@ -256,15 +257,15 @@ function Router() {
   // otherwise a signed-in admin would be bounced home on every page refresh.
   useEffect(() => {
     if (!authReady) return;
-    if (route === 'admin' && !isAdmin) window.location.hash = '';
-    if (route === 'profile' && !isAuthed) window.location.hash = '';
+    if (route === 'admin' && !isAdmin) goHome();
+    if (route === 'profile' && !isAuthed) goHome();
   }, [route, isAdmin, isAuthed, authReady]);
 
   if (route === 'admin' && isAdmin) {
-    return <AdminApp onExit={() => { window.location.hash = ''; }} />;
+    return <AdminApp onExit={goHome} />;
   }
   if (route === 'profile' && isAuthed) {
-    return <ProfilePage onExit={() => { window.location.hash = ''; }} />;
+    return <ProfilePage onExit={goHome} />;
   }
   return <RallyApp />;
 }

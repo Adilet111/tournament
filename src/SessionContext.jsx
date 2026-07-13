@@ -11,6 +11,7 @@ import {
   setProfiles as persistProfiles,
   isAdmin,
 } from './lib/auth';
+import { goHome } from './lib/nav';
 
 const SessionContext = createContext(null);
 
@@ -62,7 +63,7 @@ export function SessionProvider({ children }) {
     logoutServer(); // clears the httpOnly cookie; best-effort
     setSession(null);
     // Protected surfaces live under #admin — bounce to the public site.
-    if (window.location.hash.startsWith('#admin')) window.location.hash = '';
+    if (window.location.hash.startsWith('#admin')) goHome();
   }, []);
 
   // Global 401 rule: any API call that comes back unauthorized clears the
@@ -74,7 +75,7 @@ export function SessionProvider({ children }) {
     const onUnauthorized = () => {
       if (sessionRef.current) setSessionExpired(true);
       setSession(null);
-      if (window.location.hash.startsWith('#admin')) window.location.hash = '';
+      if (window.location.hash.startsWith('#admin')) goHome();
     };
     window.addEventListener('rally:unauthorized', onUnauthorized);
     return () => window.removeEventListener('rally:unauthorized', onUnauthorized);
