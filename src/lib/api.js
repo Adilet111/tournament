@@ -84,6 +84,12 @@ export function registerForTournament(tournamentId, token) {
   return post(`/tournaments/${seg(tournamentId)}/register`, {}, token);
 }
 
+/* GET /me/tournaments — the signed-in user's tournaments, split into
+   { upcoming, past } arrays. `past` doubles as the match history. */
+export function getMyTournaments(token) {
+  return get('/me/tournaments', token);
+}
+
 /* ------------------------------------------------------------------ admin ---
    Endpoints from ADMIN_LOGIC.md. All require an admin bearer token: a missing/
    invalid token → 401, a valid non-admin token → 403. */

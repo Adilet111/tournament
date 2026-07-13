@@ -103,6 +103,7 @@ Rules of the road:
 | `updateTournament` | `PATCH /tournaments/:id` | admin | fields and/or `status` |
 | `deleteTournament` | `DELETE /tournaments/:id` | admin | only if 0 registrations (else 409) |
 | `registerForTournament` | `POST /tournaments/:id/register` | user | body `{}`, user from token |
+| `getMyTournaments` | `GET /me/tournaments` | user | `{ upcoming, past }` — past = match history |
 | `listAdminTournaments` | `GET /admin/tournaments?status=` | admin | **all** statuses |
 | `getAdminUser` | `GET /admin/users/:id` | admin | `{ user, profiles, registrations }` |
 | `listRegistrations` | `GET /tournaments/:id/registrations?status=` | admin | joined to user + profile |
