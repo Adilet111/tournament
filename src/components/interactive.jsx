@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { SPORTS, LOCATIONS, WINDOWS, CATEGORIES } from '../data';
+import { LOCATIONS, WINDOWS, CATEGORIES } from '../data';
 import { listTournaments, listSports } from '../lib/api';
 import { useLang } from '../LangContext';
 import { Btn, Arrow, Pill, SportTag, useReveal } from './primitives';
@@ -38,31 +38,41 @@ const normalizeT = (t, slugMap) => ({
   currency: t.currency || 'KZT',
 });
 
-/* ---- shared fetch — one request, both Browse and Participate reuse it ---- */
+/* ---- shared fetch — one request, both Browse and Participate reuse it ----
+   Caches both the normalized tournaments and the sports list from the API, so
+   the sport filter pills are driven by real data, not hardcoded ids. */
 let _cache = null;
 let _promise = null;
 
+const EMPTY = { tournaments: [], sports: [] };
+
 function useTournaments() {
-  const [tournaments, setTournaments] = useState(_cache || []);
+  const [data, setData] = useState(_cache || EMPTY);
   const [loading, setLoading] = useState(!_cache);
 
   useEffect(() => {
-    if (_cache) { setTournaments(_cache); setLoading(false); return; }
+    if (_cache) { setData(_cache); setLoading(false); return; }
     if (!_promise) {
       _promise = Promise.all([listTournaments(), listSports()])
         .then(([ts, ss]) => {
-          const slugMap = Object.fromEntries(
-            (Array.isArray(ss) ? ss : []).map((s) => [s.id, s.slug || s.name.toLowerCase()])
-          );
-          _cache = (Array.isArray(ts) ? ts : []).map((t) => normalizeT(t, slugMap));
+          const sports = (Array.isArray(ss) ? ss : []).map((s) => ({
+            id: s.id,
+            slug: s.slug || String(s.name || '').toLowerCase(),
+            name: s.name,
+          }));
+          const slugMap = Object.fromEntries(sports.map((s) => [s.id, s.slug]));
+          _cache = {
+            tournaments: (Array.isArray(ts) ? ts : []).map((t) => normalizeT(t, slugMap)),
+            sports,
+          };
           return _cache;
         })
-        .catch(() => { _promise = null; return []; });
+        .catch(() => { _promise = null; return EMPTY; });
     }
-    _promise.then((data) => { setTournaments(data); setLoading(false); });
+    _promise.then((d) => { setData(d); setLoading(false); });
   }, []);
 
-  return { tournaments, loading };
+  return { tournaments: data.tournaments, sports: data.sports, loading };
 }
 
 /* ---- CompetitionCard ---- */
@@ -124,7 +134,7 @@ export function Browse({ onRegister }) {
   const { t } = useLang();
   const b = t.browse;
   const ref = useReveal();
-  const { tournaments, loading } = useTournaments();
+  const { tournaments, sports, loading } = useTournaments();
   const [sport, setSport] = useState("");
   const [location, setLocation] = useState("");
   const [win, setWin] = useState("");
@@ -171,9 +181,9 @@ export function Browse({ onRegister }) {
               <span className="font-mono text-[11px] uppercase tracking-wide text-ink-300">{b.sportLbl}</span>
               <div className="flex gap-2 overflow-x-auto scrollbar-thin pb-1">
                 <FilterChip active={!sport} onClick={() => setSport("")}>{b.allSports}</FilterChip>
-                {SPORTS.map((s) => (
-                  <FilterChip key={s.id} active={sport === s.id} onClick={() => setSport(s.id)}>
-                    {t.data.sports[s.id]}
+                {sports.map((s) => (
+                  <FilterChip key={s.id} active={sport === s.slug} onClick={() => setSport(s.slug)}>
+                    {t.data.sports[s.slug] ?? s.name}
                   </FilterChip>
                 ))}
               </div>
@@ -237,13 +247,15 @@ export function Participate({ onRegister }) {
   const p = t.participate;
   const ref = useReveal();
 
+  const { tournaments, sports } = useTournaments();
+  const sportOptions = sports.map((s) => ({ id: s.slug, label: s.name }));
+
   const STEPS = p.steps.map((s, i) => ({
     ...s,
     key: ["sport", "location", "window", "category"][i],
-    list: [SPORTS, LOCATIONS, WINDOWS, CATEGORIES][i],
+    list: [sportOptions, LOCATIONS, WINDOWS, CATEGORIES][i],
   }));
 
-  const { tournaments } = useTournaments();
   const [step, setStep] = useState(0);
   const [sel, setSel] = useState({ sport: "", location: "", window: "", category: "" });
   const done = step >= STEPS.length;
@@ -266,7 +278,7 @@ export function Participate({ onRegister }) {
   };
 
   const tLabel = (key, id) => {
-    if (key === "sport")    return t.data.sports[id] ?? id;
+    if (key === "sport")    return t.data.sports[id] ?? sportOptions.find((s) => s.id === id)?.label ?? id;
     if (key === "location") return t.data.locations[id] ?? id;
     if (key === "window")   return t.data.windows[id] ?? id;
     if (key === "category") return t.data.categories[id] ?? id;
