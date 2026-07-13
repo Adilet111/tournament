@@ -536,6 +536,14 @@ export const translations = {
       },
     },
 
+    /* Shown when any API call answers 401 while the user was signed in. */
+    sessionExpired: {
+      title:     "You've been signed out",
+      body:      "Your session is no longer active. Please sign in again to continue where you left off.",
+      signInCta: "Sign in",
+      dismiss:   "Not now",
+    },
+
     /* User-facing messages keyed by the backend's stable error `code` —
        branch on the code, never on the message text. */
     errors: {
@@ -1072,6 +1080,14 @@ export const translations = {
         intermediate: "Средний уровень",
         pro:          "Профи",
       },
+    },
+
+    /* Показывается, когда любой запрос вернул 401 у вошедшего пользователя. */
+    sessionExpired: {
+      title:     "Вы вышли из системы",
+      body:      "Ваша сессия больше не активна. Войдите снова, чтобы продолжить с того же места.",
+      signInCta: "Войти",
+      dismiss:   "Не сейчас",
     },
 
     /* Сообщения об ошибках по стабильному коду `code` из ответа бэкенда. */

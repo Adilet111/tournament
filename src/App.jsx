@@ -269,11 +269,45 @@ function Router() {
   return <RallyApp />;
 }
 
+/* Shown when any API call answers 401 while the user was signed in (the
+   SessionProvider flips `sessionExpired`). Offers to sign back in via the
+   regular auth modal, or dismiss and keep browsing signed out. */
+function SessionExpiredNotice() {
+  const { t } = useLang();
+  const se = t.sessionExpired;
+  const { sessionExpired, clearSessionExpired } = useSession();
+  const [authOpen, setAuthOpen] = useState(false);
+
+  if (!sessionExpired) return null;
+  if (authOpen) {
+    return <AuthPage mode="signin" onClose={() => { setAuthOpen(false); clearSessionExpired(); }} />;
+  }
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center p-4">
+      <div className="absolute inset-0 bg-ink-900/40 backdrop-blur-sm animate-[fadein_.2s_ease]" onMouseDown={clearSessionExpired} />
+      <div className="relative w-full max-w-sm rounded-3xl border border-ink-100 bg-white p-7 text-center shadow-2xl">
+        <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-[var(--accent-soft)] text-[var(--accent-ink)]">
+          <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.8">
+            <rect x="5" y="10.5" width="14" height="9" rx="2" /><path d="M8.5 10.5V7.5a3.5 3.5 0 0 1 7 0v3" strokeLinecap="round" />
+          </svg>
+        </div>
+        <h3 className="font-display mt-4 text-[20px] font-700 text-ink-900">{se.title}</h3>
+        <p className="mx-auto mt-2 max-w-xs text-[14px] leading-relaxed text-ink-500">{se.body}</p>
+        <div className="mt-6 flex flex-col gap-2">
+          <Btn variant="primary" size="md" className="w-full justify-center" onClick={() => setAuthOpen(true)}>{se.signInCta}</Btn>
+          <button onClick={clearSessionExpired} className="py-1.5 text-[13.5px] font-500 text-ink-500 hover:text-ink-900">{se.dismiss}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   return (
     <LangProvider>
       <SessionProvider>
         <Router />
+        <SessionExpiredNotice />
       </SessionProvider>
     </LangProvider>
   );

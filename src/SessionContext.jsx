@@ -3,7 +3,7 @@
    auth cookie the backend sets at login. On startup we ask GET /auth/me who we
    are (authReady flips true once that answer lands). Sport profiles are still
    kept in localStorage — they're display data, not credentials. */
-import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import {
   getCurrentUser,
   logoutServer,
@@ -22,7 +22,13 @@ const newId = () =>
 export function SessionProvider({ children }) {
   const [session, setSession] = useState(null);
   const [authReady, setAuthReady] = useState(false);
+  const [sessionExpired, setSessionExpired] = useState(false);
   const [profiles, setProfiles] = useState(getProfiles);
+
+  // Mirror of `session` for the unauthorized listener — it must know whether
+  // the user *was* signed in without re-subscribing on every session change.
+  const sessionRef = useRef(null);
+  useEffect(() => { sessionRef.current = session; }, [session]);
 
   // Startup: the server says whether the cookie is (still) a valid session.
   useEffect(() => {
@@ -49,6 +55,7 @@ export function SessionProvider({ children }) {
 
   const signIn = useCallback((s) => {
     setSession(s);
+    setSessionExpired(false); // signing back in resolves the expired notice
   }, []);
 
   const signOut = useCallback(() => {
@@ -60,14 +67,20 @@ export function SessionProvider({ children }) {
 
   // Global 401 rule: any API call that comes back unauthorized clears the
   // user state and sends the user back to the public site to sign in again.
+  // The expired notice only shows when someone actually *was* signed in —
+  // a signed-out visitor tripping a 401 just needs to sign in, not be told
+  // they were logged out.
   useEffect(() => {
     const onUnauthorized = () => {
+      if (sessionRef.current) setSessionExpired(true);
       setSession(null);
       if (window.location.hash.startsWith('#admin')) window.location.hash = '';
     };
     window.addEventListener('rally:unauthorized', onUnauthorized);
     return () => window.removeEventListener('rally:unauthorized', onUnauthorized);
   }, []);
+
+  const clearSessionExpired = useCallback(() => setSessionExpired(false), []);
 
   const addProfile = useCallback((profile) => {
     setProfiles((prev) => {
@@ -93,6 +106,8 @@ export function SessionProvider({ children }) {
         isAuthed: !!session,
         authReady,
         isAdmin: isAdmin(session),
+        sessionExpired,
+        clearSessionExpired,
         signIn,
         signOut,
         profiles,
