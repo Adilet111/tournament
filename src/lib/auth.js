@@ -34,7 +34,12 @@ async function authRequest(path, options = {}) {
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
     credentials: 'include', // send / receive the auth cookie
-    headers: { 'Content-Type': 'application/json', ...options.headers },
+    headers: {
+      // Only claim JSON when we actually send a body — Fastify rejects an
+      // empty body with a JSON content-type.
+      ...(options.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+      ...options.headers,
+    },
   });
 
   let data = null;
