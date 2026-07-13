@@ -248,9 +248,26 @@ export const translations = {
 
     account: {
       defaultName:   "Athlete",
+      myProfile:     "My profile",
       createProfile: "Create profile",
       admin:         "Admin",
       signOut:       "Sign out",
+    },
+
+    profilePage: {
+      eyebrow:          "Account",
+      backToSite:       "Back to site",
+      sportProfiles:    "Sport profiles",
+      ratingLbl:        "Rating",
+      loading:          "Loading your profiles…",
+      loadFailed:       "Couldn't load your sport profiles.",
+      retry:            "Retry",
+      noProfiles:       "No sport profiles yet",
+      noProfilesHint:   "Register for a competition and answer a few questions — we'll build your skill profile and rank you.",
+      findCompetition:  "Find a competition",
+      matchHistory:     "Match history",
+      matchHistorySoon: "Coming soon",
+      matchHistoryHint: "Your played matches and results will show up here once match tracking launches.",
     },
 
     admin: {
@@ -757,9 +774,26 @@ export const translations = {
 
     account: {
       defaultName:   "Атлет",
+      myProfile:     "Мой профиль",
       createProfile: "Создать профиль",
       admin:         "Админ",
       signOut:       "Выйти",
+    },
+
+    profilePage: {
+      eyebrow:          "Аккаунт",
+      backToSite:       "На сайт",
+      sportProfiles:    "Спортивные профили",
+      ratingLbl:        "Рейтинг",
+      loading:          "Загружаем ваши профили…",
+      loadFailed:       "Не удалось загрузить спортивные профили.",
+      retry:            "Повторить",
+      noProfiles:       "Спортивных профилей пока нет",
+      noProfilesHint:   "Зарегистрируйтесь на соревнование и ответьте на несколько вопросов — мы составим ваш профиль навыков и присвоим рейтинг.",
+      findCompetition:  "Найти соревнование",
+      matchHistory:     "История матчей",
+      matchHistorySoon: "Скоро",
+      matchHistoryHint: "Здесь появятся ваши сыгранные матчи и результаты, когда запустится учёт матчей.",
     },
 
     admin: {

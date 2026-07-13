@@ -76,7 +76,7 @@ const DEFAULT_TIER = { label: 'Unranked', color: '#8a94a6', glow: 'rgba(138,148,
      placement.tier     → rank name  (Iron … Challenger)               → shown big + coloured
      placement.division → sub-division (IV–I; empty for Challenger)    → shown small
      placement.elo      → numeric score (also mirrored as top-level `rating`) */
-function normalizeRank(raw) {
+export function normalizeRank(raw) {
   const p = raw?.placement ?? raw ?? {};
   const tierName = String(p.tier ?? '').trim();
   const key = tierName.toLowerCase();

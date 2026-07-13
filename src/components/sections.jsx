@@ -42,6 +42,11 @@ function UserMenu({ onCreateProfile }) {
             {user?.email && <div className="truncate text-[12.5px] text-ink-500">{user.email}</div>}
           </div>
           <div className="p-2">
+            <button onClick={() => { setOpen(false); window.location.hash = 'profile'; }}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[14px] font-600 text-ink-900 hover:bg-ink-50">
+              <svg viewBox="0 0 24 24" className="h-[17px] w-[17px] text-accent" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4" /><path d="M4 20c1.5-3.5 4.5-5 8-5s6.5 1.5 8 5" /></svg>
+              {t.account.myProfile}
+            </button>
             <button onClick={() => { setOpen(false); onCreateProfile(); }}
               className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[14px] font-600 text-ink-900 hover:bg-ink-50">
               <span className="text-accent">＋</span> {t.account.createProfile}

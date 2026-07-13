@@ -9,6 +9,7 @@ import { AuthPage } from './components/auth';
 import { ProfileModal } from './components/profile';
 import { ProfileOnboarding } from './components/onboarding';
 import { AdminApp } from './admin/AdminApp';
+import { ProfilePage } from './components/profilePage';
 import { getProfile, submitProfileAnswers, registerForTournament } from './lib/api';
 import { getAuthToken } from './lib/auth';
 
@@ -235,13 +236,16 @@ function RallyApp() {
   );
 }
 
-/* Tiny hash router: '#admin' shows the organizer dashboard, anything else the
-   landing page. Non-admins are bounced back to the landing page. */
-const readRoute = () =>
-  window.location.hash.replace(/^#\/?/, '').toLowerCase() === 'admin' ? 'admin' : 'home';
+/* Tiny hash router: '#admin' shows the organizer dashboard, '#profile' the
+   signed-in user's profile page, anything else the landing page. Non-admins are
+   bounced off '#admin'; signed-out users are bounced off '#profile'. */
+const readRoute = () => {
+  const h = window.location.hash.replace(/^#\/?/, '').toLowerCase();
+  return h === 'admin' || h === 'profile' ? h : 'home';
+};
 
 function Router() {
-  const { isAdmin } = useSession();
+  const { isAdmin, isAuthed } = useSession();
   const [route, setRoute] = useState(readRoute);
 
   useEffect(() => {
@@ -250,13 +254,18 @@ function Router() {
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
 
-  // Redirect non-admins (and signed-out users) away from the admin route.
+  // Redirect users away from routes they can't see (non-admins off #admin,
+  // signed-out users off #profile).
   useEffect(() => {
     if (route === 'admin' && !isAdmin) window.location.hash = '';
-  }, [route, isAdmin]);
+    if (route === 'profile' && !isAuthed) window.location.hash = '';
+  }, [route, isAdmin, isAuthed]);
 
   if (route === 'admin' && isAdmin) {
     return <AdminApp onExit={() => { window.location.hash = ''; }} />;
+  }
+  if (route === 'profile' && isAuthed) {
+    return <ProfilePage onExit={() => { window.location.hash = ''; }} />;
   }
   return <RallyApp />;
 }
