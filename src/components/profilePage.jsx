@@ -7,7 +7,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { useLang } from '../LangContext';
 import { useSession } from '../SessionContext';
 import { listSports, getProfile, getMyTournaments } from '../lib/api';
-import { getAuthToken } from '../lib/auth';
 import { placeElo } from '../lib/rank';
 import { Logo, Btn, LangSwitcher, SportTag, Pill } from './primitives';
 import { normalizeRank } from './onboarding';
@@ -93,8 +92,7 @@ function EmptyNote({ children }) {
 export function ProfilePage({ onExit }) {
   const { t } = useLang();
   const pp = t.profilePage;
-  const { session, user } = useSession();
-  const token = getAuthToken(session);
+  const { user } = useSession();
   const name = user?.name || t.account.defaultName;
 
   const [state, setState] = useState('loading'); // loading | ready | error
@@ -107,13 +105,13 @@ export function ProfilePage({ onExit }) {
   const load = useCallback(() => {
     let cancelled = false;
     (async () => {
-      const [sports, my] = await Promise.all([listSports(), getMyTournaments(token)]);
+      const [sports, my] = await Promise.all([listSports(), getMyTournaments()]);
       const list = Array.isArray(sports) ? sports : [];
       const found = await Promise.all(
         list.map(async (s) => {
           const slug = s.slug || String(s.name || '').toLowerCase();
           if (!slug) return null;
-          const profile = await getProfile(slug, token); // null on 404 (no profile)
+          const profile = await getProfile(slug); // null on 404 (no profile)
           if (!profile) return null;
           // Derive tier/division/LP from the raw Elo with the backend's
           // place() logic, then map the tier to its colours.
@@ -131,7 +129,7 @@ export function ProfilePage({ onExit }) {
       setState('ready');
     })().catch(() => { if (!cancelled) setState('error'); });
     return () => { cancelled = true; };
-  }, [token]);
+  }, []);
 
   useEffect(() => load(), [load]);
 

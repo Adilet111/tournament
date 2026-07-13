@@ -11,7 +11,6 @@ import { ProfileOnboarding } from './components/onboarding';
 import { AdminApp } from './admin/AdminApp';
 import { ProfilePage } from './components/profilePage';
 import { getProfile, submitProfileAnswers, registerForTournament } from './lib/api';
-import { getAuthToken } from './lib/auth';
 
 const TWEAK_DEFAULTS = {
   heroStyle: "split",
@@ -22,8 +21,7 @@ const TWEAK_DEFAULTS = {
 function RegisterModal({ comp, onClose }) {
   const { t } = useLang();
   const r = t.register;
-  const { session, user, addProfile } = useSession();
-  const token = getAuthToken(session);
+  const { user, isAuthed, addProfile } = useSession();
   const [stage, setStage] = useState("form");
   const [form, setForm] = useState({ cat: comp ? comp.cats[0] : "" });
   // Backend skill-profile check for the clicked tournament's sport slug.
@@ -33,12 +31,12 @@ function RegisterModal({ comp, onClose }) {
   const [registerState, setRegisterState] = useState("idle"); // idle | submitting | error
 
   // Confirm registration: POST /tournaments/:id/register, then show the success
-  // screen. The signed-in user is identified by the bearer token.
+  // screen. The signed-in user is identified by the auth cookie.
   const submitRegistration = async () => {
     if (registerState === "submitting") return;
     setRegisterState("submitting");
     try {
-      await registerForTournament(comp.id, token);
+      await registerForTournament(comp.id);
       setRegisterState("idle");
       setStage("done");
     } catch {
@@ -58,11 +56,11 @@ function RegisterModal({ comp, onClose }) {
   useEffect(() => {
     if (!sportSlug) return;
     let cancelled = false;
-    getProfile(sportSlug, token)
+    getProfile(sportSlug)
       .then((p) => { if (!cancelled) setProfileState(p ? "found" : "missing"); })
       .catch(() => { if (!cancelled) setProfileState("error"); });
     return () => { cancelled = true; };
-  }, [sportSlug, token, checkKey]);
+  }, [sportSlug, isAuthed, checkKey]);
   if (!comp) return null;
   const hasProfile = profileState === "found";
   // Registration is gated on having a skill profile for this sport — the
@@ -77,9 +75,8 @@ function RegisterModal({ comp, onClose }) {
         sport={comp.sport}
         sportLabel={sportName}
         name={user?.name || ""}
-        token={token}
         onClose={() => setOnboarding(false)}
-        onSubmit={(answers) => submitProfileAnswers(comp.sport, answers, token)}
+        onSubmit={(answers) => submitProfileAnswers(comp.sport, answers)}
         onComplete={(answers, rank) => {
           // The backend has scored the answers; persist the profile + rank and
           // flip the modal to "found".
@@ -147,7 +144,7 @@ function RegisterModal({ comp, onClose }) {
               )}
               {profileState === "error" && (
                 <div className="rounded-2xl border border-dashed border-ink-200 bg-ink-50 p-4 text-center">
-                  <p className="text-[13.5px] text-ink-500">{token ? r.checkFailed : r.signInToCheck}</p>
+                  <p className="text-[13.5px] text-ink-500">{isAuthed ? r.checkFailed : r.signInToCheck}</p>
                   <button onClick={() => { setProfileState("loading"); setCheckKey((k) => k + 1); }} className="mt-2 text-[13.5px] font-600 text-accent hover:underline">{r.retry}</button>
                 </div>
               )}
@@ -245,7 +242,7 @@ const readRoute = () => {
 };
 
 function Router() {
-  const { isAdmin, isAuthed } = useSession();
+  const { isAdmin, isAuthed, authReady } = useSession();
   const [route, setRoute] = useState(readRoute);
 
   useEffect(() => {
@@ -255,11 +252,13 @@ function Router() {
   }, []);
 
   // Redirect users away from routes they can't see (non-admins off #admin,
-  // signed-out users off #profile).
+  // signed-out users off #profile). Wait for the /auth/me answer first —
+  // otherwise a signed-in admin would be bounced home on every page refresh.
   useEffect(() => {
+    if (!authReady) return;
     if (route === 'admin' && !isAdmin) window.location.hash = '';
     if (route === 'profile' && !isAuthed) window.location.hash = '';
-  }, [route, isAdmin, isAuthed]);
+  }, [route, isAdmin, isAuthed, authReady]);
 
   if (route === 'admin' && isAdmin) {
     return <AdminApp onExit={() => { window.location.hash = ''; }} />;

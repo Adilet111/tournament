@@ -535,6 +535,18 @@ export const translations = {
         pro:          "Pro",
       },
     },
+
+    /* User-facing messages keyed by the backend's stable error `code` —
+       branch on the code, never on the message text. */
+    errors: {
+      token_expired:    "Your session has expired. Please sign in again.",
+      unauthorized:     "Please sign in to continue.",
+      forbidden:        "You don't have permission to do this.",
+      not_found:        "Not found.",
+      conflict:         "This action conflicts with the current state.",
+      validation_error: "Please check the form fields and try again.",
+      internal_error:   "Something went wrong. Please try again later.",
+    },
   },
 
   /* ------------------------------------------------------------------ RU -- */
@@ -1061,5 +1073,22 @@ export const translations = {
         pro:          "Профи",
       },
     },
+
+    /* Сообщения об ошибках по стабильному коду `code` из ответа бэкенда. */
+    errors: {
+      token_expired:    "Сессия истекла. Пожалуйста, войдите снова.",
+      unauthorized:     "Пожалуйста, войдите, чтобы продолжить.",
+      forbidden:        "У вас нет прав для этого действия.",
+      not_found:        "Не найдено.",
+      conflict:         "Действие конфликтует с текущим состоянием.",
+      validation_error: "Проверьте поля формы и попробуйте снова.",
+      internal_error:   "Что-то пошло не так. Попробуйте позже.",
+    },
   },
 };
+
+/* Pick the user-facing message for an API error: the translated message for
+   its stable `code`, falling back to the raw backend message. */
+export function apiErrorMessage(e, t) {
+  return t?.errors?.[e?.code] ?? e?.message ?? t?.errors?.internal_error;
+}

@@ -2,8 +2,7 @@
 import { useState, useEffect } from 'react';
 import { LOCATIONS, CATEGORIES } from '../data';
 import { useLang } from '../LangContext';
-import { useSession } from '../SessionContext';
-import { getAuthToken } from '../lib/auth';
+import { apiErrorMessage } from '../i18n';
 import {
   createTournament, listSports, createSport,
   listAdminTournaments, getTournament, updateTournament, deleteTournament,
@@ -159,8 +158,6 @@ export function Overview({ setView }) {
 export function Competitions({ setView }) {
   const { t } = useLang();
   const c0 = t.admin.competitions;
-  const { session } = useSession();
-  const token = getAuthToken(session);
   const [filter, setFilter] = useState('all');
   const [tournaments, setTournaments] = useState([]);
   const [sportsMap, setSportsMap] = useState({});
@@ -171,17 +168,17 @@ export function Competitions({ setView }) {
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([listAdminTournaments(filter === 'all' ? undefined : filter, token), listSports()])
+    Promise.all([listAdminTournaments(filter === 'all' ? undefined : filter), listSports()])
       .then(([ts, ss]) => {
         if (cancelled) return;
         setSportsMap(Object.fromEntries((Array.isArray(ss) ? ss : []).map((s) => [s.id, s.name])));
         setTournaments(Array.isArray(ts) ? ts : []);
         setFetchError(null);
       })
-      .catch((e) => { if (!cancelled) setFetchError(e.message); })
+      .catch((e) => { if (!cancelled) setFetchError(apiErrorMessage(e, t)); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [filter, token, reloadKey]);
+  }, [filter, reloadKey, t]);
 
   const reload = () => setReloadKey((k) => k + 1);
 
@@ -258,7 +255,6 @@ export function Competitions({ setView }) {
       {managing && (
         <ManageTournament
           tournament={managing}
-          token={token}
           sportName={sportsMap[managing.sportId] || managing.sportId}
           onClose={() => setManaging(null)}
           onChanged={reload}
@@ -269,7 +265,7 @@ export function Competitions({ setView }) {
 }
 
 /* ---- manage one tournament: edit fields, move status, delete ---- */
-function ManageTournament({ tournament, token, sportName, onClose, onChanged }) {
+function ManageTournament({ tournament, sportName, onClose, onChanged }) {
   const { t } = useLang();
   const m = t.admin.manage;
   const statusLabel = (s) => t.admin.status[s] || STATUS_LABEL[s] || s;
@@ -290,9 +286,9 @@ function ManageTournament({ tournament, token, sportName, onClose, onChanged }) 
   // Pull live detail for an accurate registeredCount (drives the delete gate).
   useEffect(() => {
     let cancelled = false;
-    getTournament(tournament.id, token).then((d) => { if (!cancelled && d) setDetail(d); }).catch(() => {});
+    getTournament(tournament.id).then((d) => { if (!cancelled && d) setDetail(d); }).catch(() => {});
     return () => { cancelled = true; };
-  }, [tournament.id, token]);
+  }, [tournament.id]);
 
   const status = detail.status;
   const registered = detail.registeredCount ?? detail.occupiedPlaces ?? detail.registered ?? 0;
@@ -317,22 +313,22 @@ function ManageTournament({ tournament, token, sportName, onClose, onChanged }) 
     if (!Object.keys(patch).length) { setNotice(m.noChanges); setError(null); return; }
     setBusy(true); setError(null); setNotice(null);
     try {
-      const updated = await updateTournament(tournament.id, patch, token);
+      const updated = await updateTournament(tournament.id, patch);
       setDetail((d) => ({ ...d, ...(updated || patch) }));
       setNotice(m.saved);
       onChanged?.();
-    } catch (e) { setError(e.message); }
+    } catch (e) { setError(apiErrorMessage(e, t)); }
     finally { setBusy(false); }
   };
 
   const move = async (next) => {
     setBusy(true); setError(null); setNotice(null);
     try {
-      const updated = await updateTournament(tournament.id, { status: next }, token);
+      const updated = await updateTournament(tournament.id, { status: next });
       setDetail((d) => ({ ...d, ...(updated || {}), status: next }));
       setNotice(m.statusChangedFn(statusLabel(next)));
       onChanged?.();
-    } catch (e) { setError(e.message); }
+    } catch (e) { setError(apiErrorMessage(e, t)); }
     finally { setBusy(false); }
   };
 
@@ -341,10 +337,10 @@ function ManageTournament({ tournament, token, sportName, onClose, onChanged }) 
     if (!window.confirm(m.deleteConfirm)) return;
     setBusy(true); setError(null);
     try {
-      await deleteTournament(tournament.id, token);
+      await deleteTournament(tournament.id);
       onChanged?.();
       onClose();
-    } catch (e) { setError(e.message); setBusy(false); }
+    } catch (e) { setError(apiErrorMessage(e, t)); setBusy(false); }
   };
 
   const field = 'mt-1.5 w-full rounded-xl border border-ink-200 bg-white px-3.5 py-2.5 text-[15px] text-ink-900 outline-none transition-colors focus:border-accent placeholder:text-ink-300';
@@ -445,8 +441,6 @@ function ManageTournament({ tournament, token, sportName, onClose, onChanged }) 
 export function Registrations() {
   const { t } = useLang();
   const rg = t.admin.registrations;
-  const { session } = useSession();
-  const token = getAuthToken(session);
 
   const [tournaments, setTournaments] = useState([]);
   const [selId, setSelId] = useState('');
@@ -461,26 +455,26 @@ export function Registrations() {
 
   // Tournament selector — all statuses so admins can inspect any event.
   useEffect(() => {
-    listAdminTournaments(undefined, token)
+    listAdminTournaments(undefined)
       .then((ts) => {
         const list = Array.isArray(ts) ? ts : [];
         setTournaments(list);
         setSelId((cur) => cur || (list[0]?.id ?? ''));
         if (list.length === 0) setLoading(false);
       })
-      .catch((e) => { setError(e.message); setLoading(false); });
-  }, [token]);
+      .catch((e) => { setError(apiErrorMessage(e, t)); setLoading(false); });
+  }, [t]);
 
   // Registrations for the selected tournament.
   useEffect(() => {
     if (!selId) return;
     let cancelled = false;
-    listRegistrations(selId, statusFilter === 'all' ? undefined : statusFilter, token)
+    listRegistrations(selId, statusFilter === 'all' ? undefined : statusFilter)
       .then((rs) => { if (!cancelled) { setRows(Array.isArray(rs) ? rs : []); setError(null); } })
-      .catch((e) => { if (!cancelled) setError(e.message); })
+      .catch((e) => { if (!cancelled) setError(apiErrorMessage(e, t)); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [selId, statusFilter, token, reloadKey]);
+  }, [selId, statusFilter, reloadKey, t]);
 
   const reload = () => setReloadKey((k) => k + 1);
   const selected = tournaments.find((tr) => tr.id === selId);
@@ -488,14 +482,14 @@ export function Registrations() {
   const mutate = async (userId, fn) => {
     setRowBusy(userId);
     try { await fn(); reload(); }
-    catch (e) { setError(e.message); }
+    catch (e) { setError(apiErrorMessage(e, t)); }
     finally { setRowBusy(null); }
   };
-  const withdraw = (userId) => mutate(userId, () => updateRegistration(selId, userId, 'withdrawn', token));
-  const reinstate = (userId) => mutate(userId, () => updateRegistration(selId, userId, 'registered', token));
+  const withdraw = (userId) => mutate(userId, () => updateRegistration(selId, userId, 'withdrawn'));
+  const reinstate = (userId) => mutate(userId, () => updateRegistration(selId, userId, 'registered'));
   const remove = (userId) => {
     if (!window.confirm(rg.removeConfirm)) return;
-    mutate(userId, () => deleteRegistration(selId, userId, token));
+    mutate(userId, () => deleteRegistration(selId, userId));
   };
 
   const registeredCount = rows.filter((r) => (r.status ?? 'registered') === 'registered').length;
@@ -566,16 +560,16 @@ export function Registrations() {
       </Card>
 
       {addOpen && (
-        <AddParticipant tournamentId={selId} tournamentTitle={selected?.title} token={token}
+        <AddParticipant tournamentId={selId} tournamentTitle={selected?.title}
           onClose={() => setAddOpen(false)} onAdded={() => { setAddOpen(false); reload(); }} />
       )}
-      {viewUser && <UserDetail userId={viewUser} token={token} onClose={() => setViewUser(null)} />}
+      {viewUser && <UserDetail userId={viewUser} onClose={() => setViewUser(null)} />}
     </div>
   );
 }
 
 /* ---- admin add-participant (override; bypasses open/rating/capacity gates) ---- */
-function AddParticipant({ tournamentId, tournamentTitle, token, onClose, onAdded }) {
+function AddParticipant({ tournamentId, tournamentTitle, onClose, onAdded }) {
   const { t } = useLang();
   const ap = t.admin.addParticipant;
   const [userId, setUserId] = useState('');
@@ -587,8 +581,8 @@ function AddParticipant({ tournamentId, tournamentTitle, token, onClose, onAdded
     const id = userId.trim();
     if (!id || busy) return;
     setBusy(true); setError(null);
-    try { await addRegistration(tournamentId, id, token); onAdded(); }
-    catch (e) { setError(e.message); setBusy(false); }
+    try { await addRegistration(tournamentId, id); onAdded(); }
+    catch (e) { setError(apiErrorMessage(e, t)); setBusy(false); }
   };
 
   return (
@@ -611,7 +605,7 @@ function AddParticipant({ tournamentId, tournamentTitle, token, onClose, onAdded
 }
 
 /* ---- full user record: account, all sport profiles, tournament history ---- */
-function UserDetail({ userId, token, onClose }) {
+function UserDetail({ userId, onClose }) {
   const { t } = useLang();
   const ud = t.admin.userDetail;
   const [data, setData] = useState(null);
@@ -619,11 +613,11 @@ function UserDetail({ userId, token, onClose }) {
 
   useEffect(() => {
     let cancelled = false;
-    getAdminUser(userId, token)
+    getAdminUser(userId)
       .then((d) => { if (!cancelled) setData(d); })
-      .catch((e) => { if (!cancelled) setError(e.message); });
+      .catch((e) => { if (!cancelled) setError(apiErrorMessage(e, t)); });
     return () => { cancelled = true; };
-  }, [userId, token]);
+  }, [userId, t]);
 
   const u = data?.user;
   const profiles = data?.profiles ?? [];
@@ -785,7 +779,6 @@ export function Promotions() {
 export function Sports() {
   const { t } = useLang();
   const sv = t.admin.sportsView;
-  const { session } = useSession();
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(null);
@@ -796,9 +789,9 @@ export function Sports() {
   useEffect(() => {
     listSports()
       .then((data) => setList(Array.isArray(data) ? data : []))
-      .catch((e) => setFetchError(e.message))
+      .catch((e) => setFetchError(apiErrorMessage(e, t)))
       .finally(() => setLoading(false));
-  }, []);
+  }, [t]);
 
   const trimmed = name.trim();
   const dupe = trimmed && list.some((s) => s.name.toLowerCase() === trimmed.toLowerCase());
@@ -810,11 +803,11 @@ export function Sports() {
     setAddError(null);
     try {
       const slug = trimmed.toLowerCase().replace(/\s+/g, '-');
-      const created = await createSport({ name: trimmed, slug }, getAuthToken(session));
+      const created = await createSport({ name: trimmed, slug });
       setList((l) => [...l, created]);
       setName('');
     } catch (e) {
-      setAddError(e.message);
+      setAddError(apiErrorMessage(e, t));
     } finally {
       setAdding(false);
     }
@@ -879,7 +872,6 @@ export function Sports() {
 export function CreateCompetition({ setView }) {
   const { t } = useLang();
   const cr = t.admin.create;
-  const { session } = useSession();
   const [f, setF] = useState({ title: '', sport: '', location: '', date: '', price: '', capacity: '', cats: [] });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
@@ -913,10 +905,10 @@ export function CreateCompetition({ setView }) {
         prizePool: 0,
         currency: 'KZT',
         bracketInfo: `${capacity}-player single elimination`,
-      }, getAuthToken(session));
+      });
       setView('competitions');
     } catch (e) {
-      setError(e.message);
+      setError(apiErrorMessage(e, t));
     } finally {
       setSubmitting(false);
     }

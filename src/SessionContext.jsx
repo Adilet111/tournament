@@ -1,11 +1,12 @@
 /* Rally — session + sport-profile state.
-   Holds the logged-in user (from OAuth) and the user's sport profiles, kept in
-   sync with localStorage so a reload (or another tab) preserves the state. */
+   The signed-in user lives in memory only; the real session is the httpOnly
+   auth cookie the backend sets at login. On startup we ask GET /auth/me who we
+   are (authReady flips true once that answer lands). Sport profiles are still
+   kept in localStorage — they're display data, not credentials. */
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import {
-  getSession,
-  setSession as persistSession,
-  clearSession,
+  getCurrentUser,
+  logoutServer,
   getProfiles,
   setProfiles as persistProfiles,
   isAdmin,
@@ -19,27 +20,53 @@ const newId = () =>
     : String(Date.now()) + Math.random().toString(16).slice(2));
 
 export function SessionProvider({ children }) {
-  const [session, setSession] = useState(getSession);
+  const [session, setSession] = useState(null);
+  const [authReady, setAuthReady] = useState(false);
   const [profiles, setProfiles] = useState(getProfiles);
 
-  // Keep state in sync if another tab signs in/out or edits profiles.
+  // Startup: the server says whether the cookie is (still) a valid session.
   useEffect(() => {
-    const sync = () => {
-      setSession(getSession());
-      setProfiles(getProfiles());
-    };
+    let cancelled = false;
+    getCurrentUser()
+      .then((user) => {
+        if (!cancelled && user) setSession({ user });
+      })
+      .catch(() => {
+        /* backend unreachable — treat as signed out */
+      })
+      .finally(() => {
+        if (!cancelled) setAuthReady(true);
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  // Keep profiles in sync if another tab edits them.
+  useEffect(() => {
+    const sync = () => setProfiles(getProfiles());
     window.addEventListener('storage', sync);
     return () => window.removeEventListener('storage', sync);
   }, []);
 
   const signIn = useCallback((s) => {
-    persistSession(s);
     setSession(s);
   }, []);
 
   const signOut = useCallback(() => {
-    clearSession();
+    logoutServer(); // clears the httpOnly cookie; best-effort
     setSession(null);
+    // Protected surfaces live under #admin — bounce to the public site.
+    if (window.location.hash.startsWith('#admin')) window.location.hash = '';
+  }, []);
+
+  // Global 401 rule: any API call that comes back unauthorized clears the
+  // user state and sends the user back to the public site to sign in again.
+  useEffect(() => {
+    const onUnauthorized = () => {
+      setSession(null);
+      if (window.location.hash.startsWith('#admin')) window.location.hash = '';
+    };
+    window.addEventListener('rally:unauthorized', onUnauthorized);
+    return () => window.removeEventListener('rally:unauthorized', onUnauthorized);
   }, []);
 
   const addProfile = useCallback((profile) => {
@@ -64,6 +91,7 @@ export function SessionProvider({ children }) {
         session,
         user: session?.user || null,
         isAuthed: !!session,
+        authReady,
         isAdmin: isAdmin(session),
         signIn,
         signOut,

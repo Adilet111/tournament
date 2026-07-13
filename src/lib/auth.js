@@ -1,13 +1,14 @@
 /* Rally — auth client.
    Gets a Google ID token in the browser via Google Identity Services (GIS),
-   then exchanges it at the backend's POST /auth/login endpoint. */
+   then exchanges it at the backend's POST /auth/login endpoint. The backend
+   answers by setting an httpOnly `auth_token` cookie — JavaScript never sees
+   or stores the session token. "Am I logged in?" is answered by GET /auth/me
+   on startup, not by anything in localStorage. */
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 // Auth is served under /api like the rest of the backend. Blank base => requests
 // hit /api/auth/* and go through the Vite dev proxy.
 const API_BASE = (import.meta.env.VITE_AUTH_API_BASE || '') + '/api';
-
-const TOKEN_KEY = 'rally.session';
 
 // Comma-separated allowlist of admin emails, e.g. VITE_ADMIN_EMAILS="a@x.com,b@y.com"
 const ADMIN_EMAILS = (import.meta.env.VITE_ADMIN_EMAILS || '')
@@ -17,7 +18,7 @@ const ADMIN_EMAILS = (import.meta.env.VITE_ADMIN_EMAILS || '')
 
 /* Whether the given session belongs to an admin. A session counts as admin if
    the backend flagged it (role/isAdmin) or the user's email is in the
-   VITE_ADMIN_EMAILS allowlist. */
+   VITE_ADMIN_EMAILS allowlist. Display-only — the backend enforces the real check. */
 export function isAdmin(session) {
   if (!session) return false;
   if (session.isAdmin === true || session.role === 'admin') return true;
@@ -27,26 +28,50 @@ export function isAdmin(session) {
   return !!email && ADMIN_EMAILS.includes(email);
 }
 
-/* ---- session storage helpers ---- */
-export function getSession() {
+/* Shared fetch for the /auth/* endpoints (they live outside lib/api.js because
+   the auth base URL can differ). Always sends the cookie. */
+async function authRequest(path, options = {}) {
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...options,
+    credentials: 'include', // send / receive the auth cookie
+    headers: { 'Content-Type': 'application/json', ...options.headers },
+  });
+
+  let data = null;
   try {
-    return JSON.parse(localStorage.getItem(TOKEN_KEY)) || null;
+    data = await res.json();
   } catch {
-    return null;
+    /* empty or non-JSON response */
   }
-}
-export function setSession(session) {
-  localStorage.setItem(TOKEN_KEY, JSON.stringify(session));
-}
-export function clearSession() {
-  localStorage.removeItem(TOKEN_KEY);
+
+  if (!res.ok) {
+    const err = new Error(data?.error || data?.message || `Request failed (${res.status})`);
+    err.code = data?.code ?? 'internal_error';
+    err.status = res.status;
+    throw err;
+  }
+  return data;
 }
 
-/* The bearer token to send on authenticated API calls. Prefer a backend-issued
-   token; fall back to the provider ID token (token-only sessions). */
-export function getAuthToken(session) {
-  if (!session) return null;
-  return session.token || session.accessToken || session.idToken || null;
+/* GET /auth/me — the server is the source of truth for "am I logged in?".
+   Returns the user object, or null when there's no valid session (401). */
+export async function getCurrentUser() {
+  try {
+    const data = await authRequest('/auth/me');
+    return data?.user ?? data ?? null;
+  } catch (e) {
+    if (e.status === 401) return null; // not logged in / session expired
+    throw e;
+  }
+}
+
+/* POST /auth/logout — clears the httpOnly cookie server-side. */
+export async function logoutServer() {
+  try {
+    await authRequest('/auth/logout', { method: 'POST' });
+  } catch {
+    /* best-effort — clear local state regardless */
+  }
 }
 
 /* Decode a JWT payload (e.g. a Google ID token) without verifying it — used
@@ -127,51 +152,34 @@ export async function getGoogleIdToken() {
 }
 
 /* ---- backend exchange ---- */
-/* POST { provider, idToken } to /auth/login. Same endpoint registers or logs in. */
+/* POST { provider, idToken } to /auth/login. Same endpoint registers or logs in.
+   The response sets the httpOnly auth cookie; the token still present in the
+   body is intentionally ignored — only the user object is kept, in app state. */
 export async function loginWithProvider(provider, idToken) {
-  const res = await fetch(`${API_BASE}/auth/login`, {
+  const data = await authRequest('/auth/login', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ provider, idToken }),
   });
-
-  let data = null;
-  try {
-    data = await res.json();
-  } catch {
-    /* non-JSON response */
-  }
-
-  if (!res.ok) {
-    throw new Error(data?.message || `Login failed (${res.status})`);
-  }
-
-  const session = { provider, ...data };
-  setSession(session);
-  return session;
+  return { provider, user: data?.user ?? null, role: data?.user?.role };
 }
 
-/* Convenience: full Google flow. The user is considered signed in as soon as
-   Google returns a valid ID token. The backend exchange is best-effort, so the
-   app still works when no backend is running. */
+/* Convenience: full Google flow — GIS prompt, then the cookie-setting backend
+   exchange. Display fields (name/picture) come from the Google ID token when
+   the backend doesn't echo them back. */
 export async function signInWithGoogle() {
   const idToken = await getGoogleIdToken();
   const claims = decodeJwt(idToken) || {};
-  const user = {
+  const googleUser = {
     sub: claims.sub,
     name: claims.name || claims.email || 'Athlete',
     email: claims.email || '',
     picture: claims.picture || '',
   };
 
-  let backend = {};
-  try {
-    backend = await loginWithProvider('google', idToken);
-  } catch {
-    /* no backend / exchange failed — fall back to a token-only session */
-  }
-
-  const session = { provider: 'google', idToken, user, ...backend };
-  setSession(session);
-  return session;
+  const backend = await loginWithProvider('google', idToken);
+  return {
+    provider: 'google',
+    ...backend,
+    user: { ...googleUser, ...(backend.user || {}) },
+  };
 }

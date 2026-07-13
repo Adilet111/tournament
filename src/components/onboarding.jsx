@@ -200,7 +200,7 @@ function OptionPill({ label, onClick, disabled }) {
   );
 }
 
-export function ProfileOnboarding({ sport, sportLabel, name, token, onClose, onComplete, onSubmit }) {
+export function ProfileOnboarding({ sport, sportLabel, name, onClose, onComplete, onSubmit }) {
   const { t } = useLang();
   const ob = t.onboarding;
   const [questions, setQuestions] = useState([]); // fetched from the API
@@ -227,7 +227,7 @@ export function ProfileOnboarding({ sport, sportLabel, name, token, onClose, onC
   // Fetch the questionnaire for this sport slug from GET /sports/:sport/questions.
   useEffect(() => {
     let cancelled = false;
-    getSportQuestions(sport, token)
+    getSportQuestions(sport)
       .then((raw) => {
         if (cancelled) return;
         const qs = normalizeQuestions(raw);
@@ -237,7 +237,7 @@ export function ProfileOnboarding({ sport, sportLabel, name, token, onClose, onC
       })
       .catch(() => { if (!cancelled) setLoadState('error'); });
     return () => { cancelled = true; };
-  }, [sport, token, loadKey]);
+  }, [sport, loadKey]);
 
   useEffect(() => {
     if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
