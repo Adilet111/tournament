@@ -66,9 +66,11 @@ const seg = (v) => encodeURIComponent(v);
 
 /* ------------------------------------------------------------- tournaments -- */
 
-/* GET /tournaments — list all open tournaments (public). */
-export function listTournaments() {
-  return get('/tournaments');
+/* GET /tournaments — list all open tournaments (public). Optional `city`
+   (a slug from GET /cities) filters server-side: /tournaments?city=almaty. */
+export function listTournaments(city) {
+  const q = city ? `?city=${seg(city)}` : '';
+  return get(`/tournaments${q}`);
 }
 
 /* GET /tournaments/:id — one tournament plus a live `registeredCount`. Public. */

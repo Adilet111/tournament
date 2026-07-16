@@ -1,6 +1,5 @@
 /* Rally Admin — dashboard views. */
 import { useState, useEffect } from 'react';
-import { CATEGORIES } from '../data';
 import { useCities, cityLabel } from '../lib/cities';
 import { useLang } from '../LangContext';
 import { apiErrorMessage } from '../i18n';
@@ -25,22 +24,6 @@ const STATUS_FILTERS = ['all', 'draft', 'open', 'closed', 'completed', 'cancelle
 
 const fmtDate = (iso, opts = { day: 'numeric', month: 'short', year: 'numeric' }) =>
   iso ? new Date(iso).toLocaleDateString('en-GB', opts) : '—';
-
-/* Skill category -> rating band. Placeholder ranges — the min/max rating sent
-   to the backend is derived from the selected category pills. Adjust these
-   (or replace ratingRange) once the rating model is finalised. */
-const CATEGORY_RATINGS = {
-  open: [0, 3000],
-  amateur: [0, 1200],
-  intermediate: [1200, 1800],
-  pro: [1800, 3000],
-};
-
-function ratingRange(cats) {
-  const bands = cats.map((c) => CATEGORY_RATINGS[c]).filter(Boolean);
-  if (!bands.length) return [0, 3000];
-  return [Math.min(...bands.map((b) => b[0])), Math.max(...bands.map((b) => b[1]))];
-}
 
 /* ============================================================ OVERVIEW === */
 function StatCard({ label, value, sub, accent }) {
@@ -272,6 +255,8 @@ function ManageTournament({ tournament, sportName, onClose, onChanged }) {
     entryFee: tournament.entryFee ?? '',
     minRating: tournament.minRating ?? '',
     maxRating: tournament.maxRating ?? '',
+    minAge: tournament.minAge ?? '',
+    maxAge: tournament.maxAge ?? '',
     startsAt: tournament.startsAt ? tournament.startsAt.slice(0, 10) : '',
     description: tournament.description ?? '',
   });
@@ -294,7 +279,13 @@ function ManageTournament({ tournament, sportName, onClose, onChanged }) {
 
   const num = (v) => (v === '' || v == null ? null : Number(v));
 
+  // Backend rejects min > max (rating or age) with a 400 — block the save here.
+  const gatesOk =
+    (num(form.minRating) == null || num(form.maxRating) == null || num(form.minRating) <= num(form.maxRating)) &&
+    (num(form.minAge) == null || num(form.maxAge) == null || num(form.minAge) <= num(form.maxAge));
+
   const saveFields = async () => {
+    if (!gatesOk) return;
     const patch = {};
     if (form.title.trim() !== (detail.title ?? '')) patch.title = form.title.trim();
     if (num(form.capacity) !== (detail.capacity ?? null)) patch.capacity = num(form.capacity);
@@ -302,6 +293,8 @@ function ManageTournament({ tournament, sportName, onClose, onChanged }) {
     if (fee !== (detail.entryFee ?? 0)) patch.entryFee = fee;
     if (num(form.minRating) !== (detail.minRating ?? null)) patch.minRating = num(form.minRating);
     if (num(form.maxRating) !== (detail.maxRating ?? null)) patch.maxRating = num(form.maxRating);
+    if (num(form.minAge) !== (detail.minAge ?? null)) patch.minAge = num(form.minAge);
+    if (num(form.maxAge) !== (detail.maxAge ?? null)) patch.maxAge = num(form.maxAge);
     const iso = form.startsAt ? new Date(form.startsAt).toISOString() : null;
     if ((iso?.slice(0, 10) ?? null) !== (detail.startsAt ? detail.startsAt.slice(0, 10) : null)) patch.startsAt = iso;
     if (form.description !== (detail.description ?? '')) patch.description = form.description;
@@ -395,6 +388,17 @@ function ManageTournament({ tournament, sportName, onClose, onChanged }) {
               <span className={lbl}>{m.maxRatingLbl}</span>
               <input type="number" value={form.maxRating} onChange={(e) => setForm({ ...form, maxRating: e.target.value })} placeholder={m.nonePlaceholder} className={field} />
             </div>
+            <div>
+              <span className={lbl}>{m.minAgeLbl}</span>
+              <input type="number" min="0" value={form.minAge} onChange={(e) => setForm({ ...form, minAge: e.target.value })} placeholder={m.nonePlaceholder} className={field} />
+            </div>
+            <div>
+              <span className={lbl}>{m.maxAgeLbl}</span>
+              <input type="number" min="0" value={form.maxAge} onChange={(e) => setForm({ ...form, maxAge: e.target.value })} placeholder={m.nonePlaceholder} className={field} />
+            </div>
+            {!gatesOk && (
+              <p className="col-span-2 text-[12.5px] font-500 text-red-500">{t.admin.create.gatesError}</p>
+            )}
           </div>
           <div>
             <span className={lbl}>{m.startsLbl}</span>
@@ -404,7 +408,7 @@ function ManageTournament({ tournament, sportName, onClose, onChanged }) {
             <span className={lbl}>{m.descriptionLbl}</span>
             <textarea rows={2} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className={field} />
           </div>
-          <Btn variant="primary" size="md" disabled={busy} onClick={saveFields}>{busy ? m.saving : m.saveChanges}</Btn>
+          <Btn variant="primary" size="md" disabled={busy || !gatesOk} onClick={saveFields}>{busy ? m.saving : m.saveChanges}</Btn>
         </section>
 
         {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-[13.5px] text-red-700">{error}</div>}
@@ -868,20 +872,36 @@ export function Sports() {
 export function CreateCompetition({ setView }) {
   const { t, lang } = useLang();
   const cr = t.admin.create;
-  const [f, setF] = useState({ title: '', sport: '', location: '', date: '', price: '', capacity: '', cats: [] });
+  const [f, setF] = useState({
+    title: '', sport: '', location: '', date: '', price: '', capacity: '',
+    // Rating / age gates — backend defaults: no effective restriction.
+    minRating: '0', maxRating: '100000', minAge: '0', maxAge: '120',
+  });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [apiSports, setApiSports] = useState([]);
   const cities = useCities();
   useEffect(() => { listSports().then((d) => setApiSports(Array.isArray(d) ? d : [])).catch(() => {}); }, []);
-  const toggleCat = (id) => setF((s) => ({ ...s, cats: s.cats.includes(id) ? s.cats.filter((x) => x !== id) : [...s.cats, id] }));
-  const valid = f.title.trim() && f.sport && f.location && f.date && f.capacity;
+
+  // Rating/age gates: blank falls back to the backend's "open" default, and a
+  // typed 0 stays 0 (Number(v) || d would swallow it). Backend rejects
+  // min > max with a 400, so block it here too.
+  const gate = (v, dflt) => { const n = Number(v); return v !== '' && Number.isFinite(n) ? Math.trunc(n) : dflt; };
+  const gates = {
+    minRating: gate(f.minRating, 0),
+    maxRating: gate(f.maxRating, 100000),
+    minAge: gate(f.minAge, 0),
+    maxAge: gate(f.maxAge, 120),
+  };
+  const gatesOk =
+    gates.minRating >= 0 && gates.minAge >= 0 &&
+    gates.minRating <= gates.maxRating && gates.minAge <= gates.maxAge;
+  const valid = f.title.trim() && f.sport && f.location && f.date && f.capacity && gatesOk;
 
   const publish = async () => {
     if (!valid || submitting) return;
     setSubmitting(true);
     setError(null);
-    const [minRating, maxRating] = ratingRange(f.cats);
     // `city` is the canonical slug from /cities — the browse filter matches on it.
     const city = f.location;
     const entryFee = Number(f.price) || 0;
@@ -893,8 +913,7 @@ export function CreateCompetition({ setView }) {
         type: entryFee > 0 ? 'paid' : 'free',
         city,
         capacity,
-        minRating,
-        maxRating,
+        ...gates,
         startsAt: f.date ? new Date(f.date).toISOString() : new Date().toISOString(),
         entryFee,
         // Fields without a form input yet — reasonable placeholders for now:
@@ -955,16 +974,26 @@ export function CreateCompetition({ setView }) {
             <span className={lbl}>{cr.priceLbl}</span>
             <input type="number" value={f.price} onChange={(e) => setF({ ...f, price: e.target.value })} placeholder={cr.pricePlaceholder} className={field} />
           </div>
-          <div>
-            <span className={lbl}>{cr.categoriesLbl}</span>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {CATEGORIES.map((c) => (
-                <button key={c.id} onClick={() => toggleCat(c.id)}
-                  className={'rounded-full border px-3.5 py-2 text-[13.5px] font-600 transition-all ' + (f.cats.includes(c.id) ? 'border-accent bg-accent text-white' : 'border-ink-200 text-ink-700 hover:border-ink-300')}>
-                  {t.data.categories[c.id] ?? c.label}
-                </button>
-              ))}
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <div>
+              <span className={lbl}>{cr.minRatingLbl}</span>
+              <input type="number" min="0" value={f.minRating} onChange={(e) => setF({ ...f, minRating: e.target.value })} className={field} />
             </div>
+            <div>
+              <span className={lbl}>{cr.maxRatingLbl}</span>
+              <input type="number" min="0" value={f.maxRating} onChange={(e) => setF({ ...f, maxRating: e.target.value })} className={field} />
+            </div>
+            <div>
+              <span className={lbl}>{cr.minAgeLbl}</span>
+              <input type="number" min="0" max="120" value={f.minAge} onChange={(e) => setF({ ...f, minAge: e.target.value })} className={field} />
+            </div>
+            <div>
+              <span className={lbl}>{cr.maxAgeLbl}</span>
+              <input type="number" min="0" max="120" value={f.maxAge} onChange={(e) => setF({ ...f, maxAge: e.target.value })} className={field} />
+            </div>
+            {!gatesOk && (
+              <p className="col-span-2 text-[12.5px] font-500 text-red-500 sm:col-span-4">{cr.gatesError}</p>
+            )}
           </div>
         </div>
 

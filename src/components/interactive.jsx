@@ -42,41 +42,73 @@ const normalizeT = (t, slugMap, cities) => ({
   currency: t.currency || 'KZT',
 });
 
-/* ---- shared fetch — one request, both Browse and Participate reuse it ----
-   Caches both the normalized tournaments and the sports list from the API, so
-   the sport filter pills are driven by real data, not hardcoded ids. */
-let _cache = null;
-let _promise = null;
+/* ---- shared fetch — cached per city, Browse and Participate reuse it ----
+   Sports + cities are fetched once; tournament lists are cached per city slug
+   ('' = all) because the city filter runs server-side (GET /tournaments?city=). */
+let _meta = null; // { sports, slugMap, cities } once loaded
+let _metaPromise = null;
+const _lists = new Map(); // city slug ('' = all) → normalized tournaments
+const _listPromises = new Map();
 
-const EMPTY = { tournaments: [], sports: [] };
+function fetchMeta() {
+  if (!_metaPromise) {
+    _metaPromise = Promise.all([listSports(), fetchCities()])
+      .then(([ss, cities]) => {
+        const sports = (Array.isArray(ss) ? ss : []).map((s) => ({
+          id: s.id,
+          slug: s.slug || String(s.name || '').toLowerCase(),
+          name: s.name,
+        }));
+        _meta = { sports, slugMap: Object.fromEntries(sports.map((s) => [s.id, s.slug])), cities };
+        return _meta;
+      })
+      .catch(() => { _metaPromise = null; return { sports: [], slugMap: {}, cities: [] }; });
+  }
+  return _metaPromise;
+}
 
-function useTournaments() {
-  const [data, setData] = useState(_cache || EMPTY);
-  const [loading, setLoading] = useState(!_cache);
+function fetchList(city) {
+  const key = city || '';
+  if (_lists.has(key)) return Promise.resolve(_lists.get(key));
+  if (!_listPromises.has(key)) {
+    _listPromises.set(
+      key,
+      Promise.all([listTournaments(key || undefined), fetchMeta()])
+        .then(([ts, meta]) => {
+          const list = (Array.isArray(ts) ? ts : []).map((t) => normalizeT(t, meta.slugMap, meta.cities));
+          _lists.set(key, list);
+          return list;
+        })
+        .catch(() => { _listPromises.delete(key); return []; })
+    );
+  }
+  return _listPromises.get(key);
+}
+
+function useTournaments(city = '') {
+  const key = city || '';
+  const [state, setState] = useState(() => ({
+    key,
+    tournaments: _lists.get(key) || [],
+    sports: _meta?.sports || [],
+    loading: !_lists.has(key),
+  }));
 
   useEffect(() => {
-    if (_cache) { setData(_cache); setLoading(false); return; }
-    if (!_promise) {
-      _promise = Promise.all([listTournaments(), listSports(), fetchCities()])
-        .then(([ts, ss, cities]) => {
-          const sports = (Array.isArray(ss) ? ss : []).map((s) => ({
-            id: s.id,
-            slug: s.slug || String(s.name || '').toLowerCase(),
-            name: s.name,
-          }));
-          const slugMap = Object.fromEntries(sports.map((s) => [s.id, s.slug]));
-          _cache = {
-            tournaments: (Array.isArray(ts) ? ts : []).map((t) => normalizeT(t, slugMap, cities)),
-            sports,
-          };
-          return _cache;
-        })
-        .catch(() => { _promise = null; return EMPTY; });
-    }
-    _promise.then((d) => { setData(d); setLoading(false); });
-  }, []);
+    let on = true;
+    fetchList(key).then((list) => {
+      if (on) setState({ key, tournaments: list, sports: _meta?.sports || [], loading: false });
+    });
+    return () => { on = false; };
+  }, [key]);
 
-  return { tournaments: data.tournaments, sports: data.sports, loading };
+  // While a new key's fetch is in flight, don't show the previous key's list.
+  const fresh = state.key === key;
+  return {
+    tournaments: fresh ? state.tournaments : _lists.get(key) || [],
+    sports: state.sports,
+    loading: fresh ? state.loading : !_lists.has(key),
+  };
 }
 
 /* ---- CompetitionCard ---- */
@@ -139,10 +171,11 @@ export function Browse({ onRegister }) {
   const { t, lang } = useLang();
   const b = t.browse;
   const ref = useReveal();
-  const { tournaments, sports, loading } = useTournaments();
-  const cities = useCities();
   const [sport, setSport] = useState("");
   const [location, setLocation] = useState("");
+  // The city filter is applied server-side: GET /tournaments?city=<slug>.
+  const { tournaments, sports, loading } = useTournaments(location);
+  const cities = useCities();
   const [win, setWin] = useState("");
   const [cat, setCat] = useState("");
 
@@ -160,10 +193,9 @@ export function Browse({ onRegister }) {
 
   const results = useMemo(() => tournaments.filter((c) =>
     (!sport || c.sport === sport) &&
-    (!location || c.location === location) &&
     (!win || c.window === win) &&
     (!cat || c.cats.includes(cat))
-  ), [tournaments, sport, location, win, cat]);
+  ), [tournaments, sport, win, cat]);
 
   const active = sport || location || win || cat;
   const reset = () => { setSport(""); setLocation(""); setWin(""); setCat(""); };

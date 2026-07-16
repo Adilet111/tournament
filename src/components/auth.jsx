@@ -1,7 +1,7 @@
 /* Rally — sign-in / registration overlay (Vite/ESM build).
    Rendered on top of the app from App.jsx. Open via Nav "Sign in" / "Register". */
 import { useState, useEffect } from 'react';
-import { signInWithGoogle } from '../lib/auth';
+import { signInWithGoogle, loginWithProvider, sessionFromLogin } from '../lib/auth';
 import { useSession } from '../SessionContext';
 import { useLang } from '../LangContext';
 
@@ -63,24 +63,34 @@ function RegisterCard({ initialMode = "signup", onClose }) {
   const { t } = useLang();
   const a = t.auth;
   const [mode, setMode] = useState(initialMode); // signup | signin
-  const [form, setForm] = useState({ name: "", email: "", password: "" });
-  const [stage, setStage] = useState("form"); // form | provider | done
+  const [form, setForm] = useState({ name: "", email: "", password: "", birthDate: "" });
+  const [stage, setStage] = useState("form"); // form | provider | birthdate | done
   const [provider, setProvider] = useState(null);
   const [error, setError] = useState(null);
+  // Google ID token held only while the birthdate stage may need to re-send
+  // POST /auth/login with a birthDate (never persisted).
+  const [pendingIdToken, setPendingIdToken] = useState(null);
+  const [savingBirth, setSavingBirth] = useState(false);
 
   const isSignup = mode === "signup";
   const emailOk = /\S+@\S+\.\S+/.test(form.email);
   const valid = emailOk && form.password.length >= 6 && (!isSignup || form.name.trim().length > 1);
 
   /* Provider sign-in: get an ID token from the provider in the browser, then
-     exchange it at POST /auth/login. The backend registers-or-logs-in. */
+     exchange it at POST /auth/login. The backend registers-or-logs-in. If the
+     account still has no birthDate, ask for it and re-send the login. */
   const oauth = async (name) => {
     setProvider(name);
     setError(null);
     setStage("provider");
     try {
       if (name === "Google") {
-        const session = await signInWithGoogle();
+        const { session, idToken } = await signInWithGoogle(isSignup ? form.birthDate || undefined : undefined);
+        if (session.user?.birthDate == null) {
+          setPendingIdToken(idToken);
+          setStage("birthdate");
+          return;
+        }
         signIn(session);
       } else {
         throw new Error(a.notConfiguredFn(name));
@@ -89,6 +99,23 @@ function RegisterCard({ initialMode = "signup", onClose }) {
     } catch (err) {
       setError(err.message || a.signinFailed);
       setStage("form");
+    }
+  };
+
+  /* Birthdate stage: re-send /auth/login with the same ID token + birthDate. */
+  const saveBirthDate = async () => {
+    if (!form.birthDate || savingBirth) return;
+    setSavingBirth(true);
+    setError(null);
+    try {
+      const backend = await loginWithProvider("google", pendingIdToken, form.birthDate);
+      signIn(sessionFromLogin(backend, pendingIdToken));
+      setPendingIdToken(null);
+      setStage("done");
+    } catch (err) {
+      setError(err.message || a.signinFailed);
+    } finally {
+      setSavingBirth(false);
     }
   };
   const submit = (e) => {
@@ -106,6 +133,30 @@ function RegisterCard({ initialMode = "signup", onClose }) {
           <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-ink-100 border-t-accent" />
           <p className="mt-5 text-[15px] font-600 text-ink-900">{a.connectingFn(provider)}</p>
           <p className="mt-1 text-[13.5px] text-ink-500">{a.redirectNote}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (stage === "birthdate") {
+    return (
+      <div className="grid min-h-[420px] place-items-center">
+        <div className="w-full max-w-xs text-center">
+          <h2 className="font-display text-[24px] font-700 text-ink-900">{a.birthTitle}</h2>
+          <p className="mt-2 text-[14.5px] leading-relaxed text-ink-500">{a.birthBody}</p>
+          {error && (
+            <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-left text-[13.5px] text-red-700" role="alert">
+              {error}
+            </div>
+          )}
+          <div className="mt-5 text-left">
+            <TextField label={a.birthDateLbl} type="date" value={form.birthDate}
+              onChange={(v) => setForm({ ...form, birthDate: v })} autoComplete="bday" />
+          </div>
+          <button onClick={saveBirthDate} disabled={!form.birthDate || savingBirth}
+            className="ring-accent mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-accent px-5 py-3 text-[15px] font-600 text-white transition-all hover:brightness-110 disabled:opacity-40 disabled:pointer-events-none">
+            {savingBirth ? a.birthSaving : a.birthSave}
+          </button>
         </div>
       </div>
     );
@@ -182,7 +233,10 @@ function RegisterCard({ initialMode = "signup", onClose }) {
       {/* email form */}
       <form onSubmit={submit} className="space-y-3.5">
         {isSignup && (
-          <TextField label={a.nameLbl} value={form.name} onChange={(v) => setForm({ ...form, name: v })} placeholder={a.namePlaceholder} autoComplete="name" />
+          <>
+            <TextField label={a.nameLbl} value={form.name} onChange={(v) => setForm({ ...form, name: v })} placeholder={a.namePlaceholder} autoComplete="name" />
+            <TextField label={a.birthDateLbl} type="date" value={form.birthDate} onChange={(v) => setForm({ ...form, birthDate: v })} autoComplete="bday" />
+          </>
         )}
         <TextField label={a.emailLbl} type="email" value={form.email} onChange={(v) => setForm({ ...form, email: v })} placeholder="alex@email.com" autoComplete="email" />
         <TextField label={a.passwordLbl} type="password" value={form.password} onChange={(v) => setForm({ ...form, password: v })} placeholder={a.passwordPlaceholder} autoComplete={isSignup ? "new-password" : "current-password"} />

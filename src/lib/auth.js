@@ -157,22 +157,22 @@ export async function getGoogleIdToken() {
 }
 
 /* ---- backend exchange ---- */
-/* POST { provider, idToken } to /auth/login. Same endpoint registers or logs in.
-   The response sets the httpOnly auth cookie; the token still present in the
-   body is intentionally ignored — only the user object is kept, in app state. */
-export async function loginWithProvider(provider, idToken) {
+/* POST { provider, idToken, birthDate? } to /auth/login. Same endpoint
+   registers or logs in; `birthDate` ("YYYY-MM-DD") is stored on the account
+   and used for tournament age gates. The response sets the httpOnly auth
+   cookie; the token still present in the body is intentionally ignored —
+   only the user object is kept, in app state. */
+export async function loginWithProvider(provider, idToken, birthDate) {
   const data = await authRequest('/auth/login', {
     method: 'POST',
-    body: JSON.stringify({ provider, idToken }),
+    body: JSON.stringify({ provider, idToken, ...(birthDate ? { birthDate } : {}) }),
   });
   return { provider, user: data?.user ?? null, role: data?.user?.role };
 }
 
-/* Convenience: full Google flow — GIS prompt, then the cookie-setting backend
-   exchange. Display fields (name/picture) come from the Google ID token when
-   the backend doesn't echo them back. */
-export async function signInWithGoogle() {
-  const idToken = await getGoogleIdToken();
+/* Build the app session from a login response, filling display fields
+   (name/picture) from the Google ID token when the backend doesn't echo them. */
+export function sessionFromLogin(backend, idToken) {
   const claims = decodeJwt(idToken) || {};
   const googleUser = {
     sub: claims.sub,
@@ -180,11 +180,19 @@ export async function signInWithGoogle() {
     email: claims.email || '',
     picture: claims.picture || '',
   };
-
-  const backend = await loginWithProvider('google', idToken);
   return {
     provider: 'google',
     ...backend,
     user: { ...googleUser, ...(backend.user || {}) },
   };
+}
+
+/* Convenience: full Google flow — GIS prompt, then the cookie-setting backend
+   exchange. Returns the session plus the Google `idToken`, so the caller can
+   re-send /auth/login with a birthDate when the backend reports it missing
+   (user.birthDate === null). Don't persist the idToken. */
+export async function signInWithGoogle(birthDate) {
+  const idToken = await getGoogleIdToken();
+  const backend = await loginWithProvider('google', idToken, birthDate);
+  return { session: sessionFromLogin(backend, idToken), idToken };
 }

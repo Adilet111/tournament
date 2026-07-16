@@ -97,7 +97,7 @@ Rules of the road:
 
 | Function | Method + path | Auth | Notes |
 |----------|---------------|------|-------|
-| `listTournaments` | `GET /tournaments` | public | **open** only |
+| `listTournaments` | `GET /tournaments?city=` | public | **open** only; optional city slug filter |
 | `getTournament` | `GET /tournaments/:id` | public | + live `registeredCount` |
 | `createTournament` | `POST /tournaments` | admin | |
 | `updateTournament` | `PATCH /tournaments/:id` | admin | fields and/or `status` |
