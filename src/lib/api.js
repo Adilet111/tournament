@@ -127,6 +127,23 @@ export function getAdminUser(id) {
   return get(`/admin/users/${seg(id)}`);
 }
 
+/* GET /admin/removed-registrations — players auto-removed when a tournament's
+   age gates tightened. Default = pending (to contact); notified=true → already
+   handled; tournamentId scopes to one tournament. */
+export function listRemovedRegistrations({ notified, tournamentId } = {}) {
+  const params = new URLSearchParams();
+  if (notified != null) params.set('notified', String(notified));
+  if (tournamentId) params.set('tournamentId', tournamentId);
+  const q = params.toString();
+  return get(`/admin/removed-registrations${q ? `?${q}` : ''}`);
+}
+
+/* POST /admin/removed-registrations/mark-notified — body { ids } marks rows as
+   contacted; responds { notified: <count> }. */
+export function markRemovedNotified(ids) {
+  return post('/admin/removed-registrations/mark-notified', { ids });
+}
+
 /* --------------------------------------------------------- registrations --- */
 
 /* GET /tournaments/:id/registrations — every registration joined to the user

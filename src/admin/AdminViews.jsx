@@ -7,6 +7,7 @@ import {
   createTournament, listSports, createSport,
   listAdminTournaments, getTournament, updateTournament, deleteTournament,
   listRegistrations, addRegistration, updateRegistration, deleteRegistration, getAdminUser,
+  listRemovedRegistrations, markRemovedNotified,
 } from '../lib/api';
 import { owned, REGISTRATIONS, SPONSORS, PROMOTIONS } from './adminData';
 import { Card, Btn, StatusDot, Avatar, Svg, Icon, fmt, Modal } from './AdminShell';
@@ -234,6 +235,7 @@ export function Competitions({ setView }) {
       {managing && (
         <ManageTournament
           tournament={managing}
+          onOpenQueue={() => setView('notifications')}
           sportName={sportsMap[managing.sportId] || managing.sportId}
           onClose={() => setManaging(null)}
           onChanged={reload}
@@ -244,10 +246,11 @@ export function Competitions({ setView }) {
 }
 
 /* ---- manage one tournament: edit fields, move status, delete ---- */
-function ManageTournament({ tournament, sportName, onClose, onChanged }) {
-  const { t } = useLang();
+function ManageTournament({ tournament, sportName, onClose, onChanged, onOpenQueue }) {
+  const { t, lang } = useLang();
   const m = t.admin.manage;
   const statusLabel = (s) => t.admin.status[s] || STATUS_LABEL[s] || s;
+  const cities = useCities();
   const [detail, setDetail] = useState(tournament);
   const [form, setForm] = useState({
     title: tournament.title ?? '',
@@ -257,12 +260,16 @@ function ManageTournament({ tournament, sportName, onClose, onChanged }) {
     maxRating: tournament.maxRating ?? '',
     minAge: tournament.minAge ?? '',
     maxAge: tournament.maxAge ?? '',
+    city: tournament.city ?? '',
     startsAt: tournament.startsAt ? tournament.startsAt.slice(0, 10) : '',
     description: tournament.description ?? '',
   });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null);
+  // Players auto-removed by the last save (tightened age gates) — from the
+  // PATCH response's `removed` array.
+  const [removed, setRemoved] = useState([]);
 
   // Pull live detail for an accurate registeredCount (drives the delete gate).
   useEffect(() => {
@@ -295,16 +302,21 @@ function ManageTournament({ tournament, sportName, onClose, onChanged }) {
     if (num(form.maxRating) !== (detail.maxRating ?? null)) patch.maxRating = num(form.maxRating);
     if (num(form.minAge) !== (detail.minAge ?? null)) patch.minAge = num(form.minAge);
     if (num(form.maxAge) !== (detail.maxAge ?? null)) patch.maxAge = num(form.maxAge);
+    if (form.city && form.city !== (detail.city ?? '')) patch.city = form.city;
     const iso = form.startsAt ? new Date(form.startsAt).toISOString() : null;
     if ((iso?.slice(0, 10) ?? null) !== (detail.startsAt ? detail.startsAt.slice(0, 10) : null)) patch.startsAt = iso;
     if (form.description !== (detail.description ?? '')) patch.description = form.description;
 
     if (!Object.keys(patch).length) { setNotice(m.noChanges); setError(null); return; }
-    setBusy(true); setError(null); setNotice(null);
+    setBusy(true); setError(null); setNotice(null); setRemoved([]);
     try {
       const updated = await updateTournament(tournament.id, patch);
-      setDetail((d) => ({ ...d, ...(updated || patch) }));
-      setNotice(m.saved);
+      // Tightened age gates auto-remove non-qualifying players; the response
+      // lists them in `removed` — surface it, don't merge it into the detail.
+      const { removed: removedRows, ...rest } = updated || {};
+      setDetail((d) => ({ ...d, ...(Object.keys(rest).length ? rest : patch) }));
+      if (Array.isArray(removedRows) && removedRows.length) setRemoved(removedRows);
+      else setNotice(m.saved);
       onChanged?.();
     } catch (e) { setError(apiErrorMessage(e, t)); }
     finally { setBusy(false); }
@@ -400,9 +412,18 @@ function ManageTournament({ tournament, sportName, onClose, onChanged }) {
               <p className="col-span-2 text-[12.5px] font-500 text-red-500">{t.admin.create.gatesError}</p>
             )}
           </div>
-          <div>
-            <span className={lbl}>{m.startsLbl}</span>
-            <input type="date" value={form.startsAt} onChange={(e) => setForm({ ...form, startsAt: e.target.value })} className={field} />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <span className={lbl}>{m.cityLbl}</span>
+              <select value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} className={field}>
+                {form.city && !cities.some((c) => c.slug === form.city) && <option value={form.city}>{form.city}</option>}
+                {cities.map((c) => <option key={c.slug} value={c.slug}>{lang === 'ru' ? c.ru : c.en}</option>)}
+              </select>
+            </div>
+            <div>
+              <span className={lbl}>{m.startsLbl}</span>
+              <input type="date" value={form.startsAt} onChange={(e) => setForm({ ...form, startsAt: e.target.value })} className={field} />
+            </div>
           </div>
           <div>
             <span className={lbl}>{m.descriptionLbl}</span>
@@ -413,6 +434,20 @@ function ManageTournament({ tournament, sportName, onClose, onChanged }) {
 
         {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-[13.5px] text-red-700">{error}</div>}
         {notice && <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-[13.5px] text-emerald-700">{notice}</div>}
+        {removed.length > 0 && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+            <p className="text-[13.5px] font-600 text-amber-800">{m.removedFn(removed.length)}</p>
+            <ul className="mt-1.5 space-y-0.5 text-[12.5px] text-amber-700">
+              {removed.map((p) => (
+                <li key={p.userId}>{p.name || p.email}{p.age != null ? ` · ${p.age}` : ''} — {t.admin.removedQ.reasons[p.reason] ?? p.reason}</li>
+              ))}
+            </ul>
+            <button onClick={() => { onClose(); onOpenQueue?.(); }}
+              className="mt-2.5 text-[13px] font-600 text-amber-900 underline-offset-2 hover:underline">
+              {m.openQueue}
+            </button>
+          </div>
+        )}
 
         {/* danger zone */}
         <section className="border-t border-ink-100 pt-5">
@@ -868,6 +903,105 @@ export function Sports() {
   );
 }
 
+/* ======================================================= NOTIFICATIONS ===
+   Queue of players auto-removed when a tournament's age gates tightened
+   (GET /admin/removed-registrations). Contact them, then tick them off via
+   POST /admin/removed-registrations/mark-notified. */
+export function RemovedNotifications() {
+  const { t } = useLang();
+  const q = t.admin.removedQ;
+  const [tab, setTab] = useState('pending'); // pending | handled
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [selected, setSelected] = useState(() => new Set());
+  const [busy, setBusy] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    listRemovedRegistrations(tab === 'handled' ? { notified: true } : {})
+      .then((d) => { if (!cancelled) { setRows(Array.isArray(d) ? d : []); setError(null); } })
+      .catch((e) => { if (!cancelled) setError(apiErrorMessage(e, t)); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [tab, reloadKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Loading/selection resets live in the handlers (not the effect) so the
+  // effect never sets state synchronously.
+  const switchTab = (id) => { if (id !== tab) { setTab(id); setLoading(true); setSelected(new Set()); } };
+  const reload = () => { setLoading(true); setSelected(new Set()); setReloadKey((k) => k + 1); };
+
+  const rowId = (r) => r.id ?? r.userId;
+  const toggle = (id) => setSelected((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const allChecked = rows.length > 0 && rows.every((r) => selected.has(rowId(r)));
+  const toggleAll = () => setSelected(allChecked ? new Set() : new Set(rows.map(rowId)));
+
+  const markNotified = async () => {
+    if (!selected.size || busy) return;
+    setBusy(true); setError(null);
+    try {
+      await markRemovedNotified([...selected]);
+      reload(); // rows leave the pending view
+    } catch (e) { setError(apiErrorMessage(e, t)); }
+    finally { setBusy(false); }
+  };
+
+  const check = 'h-4 w-4 accent-[var(--accent)]';
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex gap-2">
+          {[['pending', q.pendingTab], ['handled', q.handledTab]].map(([id, label]) => (
+            <button key={id} onClick={() => switchTab(id)}
+              className={'rounded-full border px-3.5 py-1.5 text-[13.5px] font-500 transition-all ' +
+                (tab === id ? 'border-accent bg-accent text-white shadow-sm' : 'border-ink-100 bg-white text-ink-700 hover:border-ink-300')}>
+              {label}
+            </button>
+          ))}
+        </div>
+        {tab === 'pending' && (
+          <Btn variant="primary" size="sm" disabled={!selected.size || busy} onClick={markNotified}>
+            {busy ? t.admin.manage.saving : q.markNotifiedFn(selected.size)}
+          </Btn>
+        )}
+      </div>
+
+      {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-[13.5px] text-red-700">{error}</div>}
+
+      <Card>
+        <div className="hidden border-b border-ink-100 px-6 py-3 font-mono text-[10.5px] uppercase tracking-wide text-ink-300 md:grid md:grid-cols-[auto_1.8fr_1.5fr_1.2fr_0.5fr_0.8fr_0.9fr] md:items-center md:gap-4">
+          <span>{tab === 'pending' ? <input type="checkbox" className={check} checked={allChecked} onChange={toggleAll} /> : <span className="w-4" />}</span>
+          <span>{q.thPlayer}</span><span>{q.thTournament}</span><span>{q.thReason}</span><span>{q.thAge}</span><span>{q.thLimits}</span><span>{q.thRemoved}</span>
+        </div>
+        {loading && <div className="px-6 py-5 text-[14px] text-ink-400">{t.admin.common.loading}</div>}
+        {!loading && rows.length === 0 && (
+          <div className="px-6 py-5 text-[14px] text-ink-400">{tab === 'pending' ? q.emptyPending : q.emptyHandled}</div>
+        )}
+        {!loading && rows.map((r) => (
+          <div key={rowId(r)} className="grid grid-cols-1 gap-2 border-b border-ink-100 px-6 py-4 last:border-b-0 md:grid-cols-[auto_1.8fr_1.5fr_1.2fr_0.5fr_0.8fr_0.9fr] md:items-center md:gap-4">
+            <span>
+              {tab === 'pending'
+                ? <input type="checkbox" className={check} checked={selected.has(rowId(r))} onChange={() => toggle(rowId(r))} />
+                : <span className="inline-block w-4" />}
+            </span>
+            <div className="min-w-0">
+              <div className="truncate text-[14.5px] font-600 text-ink-900">{r.name || '—'}</div>
+              <div className="truncate text-[12.5px] text-ink-500">{r.email}</div>
+            </div>
+            <div className="truncate text-[13.5px] text-ink-700">{r.tournamentTitle || r.tournamentId}</div>
+            <div><span className="rounded-full bg-ink-50 px-2.5 py-1 text-[12px] font-500 text-ink-700">{q.reasons[r.reason] ?? r.reason}</span></div>
+            <div className="font-mono text-[13px] text-ink-700">{r.age ?? '—'}</div>
+            <div className="font-mono text-[13px] text-ink-500">{r.minAge ?? 0}–{r.maxAge ?? 120}</div>
+            <div className="text-[13px] text-ink-500">{fmtDate(r.removedAt)}</div>
+          </div>
+        ))}
+      </Card>
+    </div>
+  );
+}
+
 /* ============================================================== CREATE === */
 export function CreateCompetition({ setView }) {
   const { t, lang } = useLang();
@@ -991,6 +1125,7 @@ export function CreateCompetition({ setView }) {
               <span className={lbl}>{cr.maxAgeLbl}</span>
               <input type="number" min="0" max="120" value={f.maxAge} onChange={(e) => setF({ ...f, maxAge: e.target.value })} className={field} />
             </div>
+            <p className="col-span-2 text-[12.5px] text-ink-400 sm:col-span-4">{cr.gatesHint}</p>
             {!gatesOk && (
               <p className="col-span-2 text-[12.5px] font-500 text-red-500 sm:col-span-4">{cr.gatesError}</p>
             )}
