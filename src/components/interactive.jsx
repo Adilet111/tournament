@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
-import { LOCATIONS, WINDOWS, CATEGORIES } from '../data';
+import { WINDOWS, CATEGORIES } from '../data';
 import { listTournaments, listSports } from '../lib/api';
+import { fetchCities, useCities, citySlug, cityLabel } from '../lib/cities';
 import { useLang } from '../LangContext';
 import { Btn, Arrow, Pill, SportTag, useReveal } from './primitives';
 
@@ -22,11 +23,14 @@ const computeCats = (min, max) => {
   return cats.length ? cats : ['open'];
 };
 
-const normalizeT = (t, slugMap) => ({
+const normalizeT = (t, slugMap, cities) => ({
   id: t.id,
   title: t.title,
   sport: slugMap[t.sportId] || '',
-  location: (t.city || '').toLowerCase(),
+  // Canonical city slug (matches /cities); legacy free-text cities that don't
+  // resolve keep their lowercased text so they never collide with a slug.
+  location: citySlug(cities, t.city) || (t.city || '').toLowerCase(),
+  city: t.city || '',
   window: computeWindow(t.startsAt),
   date: t.startsAt ? new Date(t.startsAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—',
   price: t.entryFee ?? 0,
@@ -53,8 +57,8 @@ function useTournaments() {
   useEffect(() => {
     if (_cache) { setData(_cache); setLoading(false); return; }
     if (!_promise) {
-      _promise = Promise.all([listTournaments(), listSports()])
-        .then(([ts, ss]) => {
+      _promise = Promise.all([listTournaments(), listSports(), fetchCities()])
+        .then(([ts, ss, cities]) => {
           const sports = (Array.isArray(ss) ? ss : []).map((s) => ({
             id: s.id,
             slug: s.slug || String(s.name || '').toLowerCase(),
@@ -62,7 +66,7 @@ function useTournaments() {
           }));
           const slugMap = Object.fromEntries(sports.map((s) => [s.id, s.slug]));
           _cache = {
-            tournaments: (Array.isArray(ts) ? ts : []).map((t) => normalizeT(t, slugMap)),
+            tournaments: (Array.isArray(ts) ? ts : []).map((t) => normalizeT(t, slugMap, cities)),
             sports,
           };
           return _cache;
@@ -77,7 +81,8 @@ function useTournaments() {
 
 /* ---- CompetitionCard ---- */
 function CompetitionCard({ c, onRegister }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
+  const cities = useCities();
   const uncapped = c.spots == null;
   const lowSpots = !uncapped && c.spots <= 15;
   return (
@@ -94,7 +99,7 @@ function CompetitionCard({ c, onRegister }) {
       <div className="flex flex-1 flex-col p-5">
         <h3 className="font-display text-[19px] font-600 leading-snug text-ink-900">{c.title}</h3>
         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13.5px] text-ink-500">
-          <span>{t.data.locations[c.location]}</span>
+          <span>{cityLabel(cities, c.city || c.location, lang)}</span>
           <span className="h-1 w-1 rounded-full bg-ink-300" />
           <span>{c.date}</span>
           <span className="h-1 w-1 rounded-full bg-ink-300" />
@@ -131,10 +136,11 @@ function FilterChip({ active, children, onClick }) {
 }
 
 export function Browse({ onRegister }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const b = t.browse;
   const ref = useReveal();
   const { tournaments, sports, loading } = useTournaments();
+  const cities = useCities();
   const [sport, setSport] = useState("");
   const [location, setLocation] = useState("");
   const [win, setWin] = useState("");
@@ -194,7 +200,7 @@ export function Browse({ onRegister }) {
               <span className="font-mono text-[11px] uppercase tracking-wide text-ink-300">{b.cityLbl}</span>
               <select value={location} onChange={(e) => setLocation(e.target.value)} className="w-full bg-transparent py-2.5 text-[14.5px] font-500 text-ink-900 outline-none">
                 <option value="">{b.anywhere}</option>
-                {LOCATIONS.map((l) => <option key={l.id} value={l.id}>{t.data.locations[l.id]}</option>)}
+                {cities.map((c) => <option key={c.slug} value={c.slug}>{lang === 'ru' ? c.ru : c.en}</option>)}
               </select>
             </label>
             <label className="flex items-center gap-2 rounded-xl border border-ink-100 px-3">
@@ -243,17 +249,19 @@ export function Browse({ onRegister }) {
 
 /* ---- Participate ---- */
 export function Participate({ onRegister }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const p = t.participate;
   const ref = useReveal();
 
   const { tournaments, sports } = useTournaments();
+  const cities = useCities();
   const sportOptions = sports.map((s) => ({ id: s.slug, label: s.name }));
+  const cityOptions = cities.map((c) => ({ id: c.slug, label: lang === 'ru' ? c.ru : c.en }));
 
   const STEPS = p.steps.map((s, i) => ({
     ...s,
     key: ["sport", "location", "window", "category"][i],
-    list: [sportOptions, LOCATIONS, WINDOWS, CATEGORIES][i],
+    list: [sportOptions, cityOptions, WINDOWS, CATEGORIES][i],
   }));
 
   const [step, setStep] = useState(0);
@@ -279,7 +287,7 @@ export function Participate({ onRegister }) {
 
   const tLabel = (key, id) => {
     if (key === "sport")    return t.data.sports[id] ?? sportOptions.find((s) => s.id === id)?.label ?? id;
-    if (key === "location") return t.data.locations[id] ?? id;
+    if (key === "location") return cityLabel(cities, id, lang);
     if (key === "window")   return t.data.windows[id] ?? id;
     if (key === "category") return t.data.categories[id] ?? id;
     return id;

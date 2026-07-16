@@ -154,6 +154,14 @@ export function deleteRegistration(id, userId) {
   return del(`/tournaments/${seg(id)}/registrations/${seg(userId)}`);
 }
 
+/* ----------------------------------------------------------------- cities --- */
+
+/* GET /cities — supported cities (public): [{ slug, en, ru }]. Tournaments
+   reference a city by its slug in their `city` field. */
+export function listCities() {
+  return get('/cities');
+}
+
 /* ----------------------------------------------------------------- sports --- */
 
 /* GET /sports — list all sports (public). */

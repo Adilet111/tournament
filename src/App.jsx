@@ -11,6 +11,7 @@ import { ProfileOnboarding } from './components/onboarding';
 import { AdminApp } from './admin/AdminApp';
 import { ProfilePage } from './components/profilePage';
 import { getProfile, submitProfileAnswers, registerForTournament } from './lib/api';
+import { useCities, cityLabel } from './lib/cities';
 import { goHome } from './lib/nav';
 
 const TWEAK_DEFAULTS = {
@@ -20,8 +21,9 @@ const TWEAK_DEFAULTS = {
 };
 
 function RegisterModal({ comp, onClose }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const r = t.register;
+  const cities = useCities();
   const { user, isAuthed, addProfile } = useSession();
   const [stage, setStage] = useState("form");
   const [form, setForm] = useState({ cat: comp ? comp.cats[0] : "" });
@@ -108,7 +110,7 @@ function RegisterModal({ comp, onClose }) {
           <div className="p-6">
             <SportTag sport={comp.sport} />
             <h3 className="font-display mt-1.5 text-[22px] font-700 leading-snug text-ink-900">{comp.title}</h3>
-            <div className="mt-1 text-[13.5px] text-ink-500">{t.data.locations[comp.location]} · {comp.date} · {comp.distance}</div>
+            <div className="mt-1 text-[13.5px] text-ink-500">{cityLabel(cities, comp.city || comp.location, lang)} · {comp.date} · {comp.distance}</div>
             <div className="mt-5 space-y-3">
               {profileState === "loading" && (
                 <div className="flex items-center gap-2 py-1 text-[13px] text-ink-500">

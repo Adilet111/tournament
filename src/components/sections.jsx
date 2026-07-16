@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { SPORTS, LOCATIONS } from '../data';
+import { SPORTS } from '../data';
+import { useCities } from '../lib/cities';
 import { useLang } from '../LangContext';
 import { useSession } from '../SessionContext';
 import { Logo, Btn, Arrow, SportTag, Pill, LangSwitcher, useReveal, scrollToId } from './primitives';
@@ -201,8 +202,9 @@ function HeroSplit() {
 }
 
 function HeroCentered() {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const h = t.hero;
+  const cities = useCities();
   const [sport, setSport] = useState("");
   const [loc, setLoc] = useState("");
   const go = () => {
@@ -233,7 +235,7 @@ function HeroCentered() {
             <select value={loc} onChange={(e) => setLoc(e.target.value)}
               className="w-full bg-transparent py-3 text-[15px] font-500 text-ink-900 outline-none">
               <option value="">{h.c_anywhere}</option>
-              {LOCATIONS.map((l) => <option key={l.id} value={l.id}>{t.data.locations[l.id]}</option>)}
+              {cities.map((c) => <option key={c.slug} value={c.slug}>{lang === 'ru' ? c.ru : c.en}</option>)}
             </select>
           </div>
           <Btn variant="primary" size="lg" className="sm:!px-6" onClick={go}>{h.c_searchCta} <Arrow /></Btn>

@@ -2,7 +2,8 @@
    Available once the user is signed in (has a session). Lets them set up a
    profile for one of the supported sports. */
 import { useEffect, useState } from 'react';
-import { SPORTS, LOCATIONS, CATEGORIES } from '../data';
+import { SPORTS, CATEGORIES } from '../data';
+import { useCities } from '../lib/cities';
 import { useLang } from '../LangContext';
 import { useSession } from '../SessionContext';
 import { Btn, SportTag } from './primitives';
@@ -30,17 +31,20 @@ function SelectField({ label, value, onChange, options, render }) {
 }
 
 export function ProfileModal({ onClose }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const p = t.profile;
   const { user, addProfile } = useSession();
+  const cities = useCities();
   const [stage, setStage] = useState('form'); // form | done
   const [form, setForm] = useState({
     sport: SPORTS[0].id,
     displayName: user?.name || '',
     category: CATEGORIES[0].id,
-    location: LOCATIONS[0].id,
+    location: '', // defaults to the first city once /cities arrives
     bio: '',
   });
+  // Cities load async, so resolve the effective selection at render/submit time.
+  const location = form.location || cities[0]?.slug || '';
 
   useEffect(() => {
     const onKey = (e) => e.key === 'Escape' && onClose();
@@ -55,7 +59,7 @@ export function ProfileModal({ onClose }) {
   const submit = (e) => {
     e.preventDefault();
     if (!valid) return;
-    addProfile(form);
+    addProfile({ ...form, location });
     setStage('done');
   };
 
@@ -79,8 +83,8 @@ export function ProfileModal({ onClose }) {
             <div className="grid grid-cols-2 gap-3">
               <SelectField label={p.categoryLbl} value={form.category} onChange={set('category')}
                 options={CATEGORIES} render={(id) => t.data.categories[id] ?? id} />
-              <SelectField label={p.cityLbl} value={form.location} onChange={set('location')}
-                options={LOCATIONS} render={(id) => t.data.locations[id] ?? id} />
+              <SelectField label={p.cityLbl} value={location} onChange={set('location')}
+                options={cities.map((c) => ({ id: c.slug, label: lang === 'ru' ? c.ru : c.en }))} />
             </div>
             <label className="block">
               <span className="font-mono text-[11px] uppercase tracking-wide text-ink-300">{p.bioLbl}</span>
