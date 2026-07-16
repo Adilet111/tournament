@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { LangProvider, useLang } from './LangContext';
+import { apiErrorMessage } from './i18n';
 import { SessionProvider, useSession } from './SessionContext';
 import { Nav, Hero, Organizer, FinalCTA, Footer } from './components/sections';
 import { Browse, Participate } from './components/interactive';
@@ -32,9 +33,11 @@ function RegisterModal({ comp, onClose }) {
   const [checkKey, setCheckKey] = useState(0);
   const [onboarding, setOnboarding] = useState(false); // chat-style profile builder
   const [registerState, setRegisterState] = useState("idle"); // idle | submitting | error
+  const [registerError, setRegisterError] = useState(null); // message for the error's stable code
 
   // Confirm registration: POST /tournaments/:id/register, then show the success
-  // screen. The signed-in user is identified by the auth cookie.
+  // screen. The signed-in user is identified by the auth cookie. On failure the
+  // backend's stable error `code` picks the translated message (t.errors).
   const submitRegistration = async () => {
     if (registerState === "submitting") return;
     setRegisterState("submitting");
@@ -42,7 +45,10 @@ function RegisterModal({ comp, onClose }) {
       await registerForTournament(comp.id);
       setRegisterState("idle");
       setStage("done");
-    } catch {
+    } catch (e) {
+      // No profile in this sport → flip the modal back to the create-profile CTA.
+      if (e?.code === "no_sport_profile") setProfileState("missing");
+      setRegisterError(e?.code === "not_found" ? r.tournamentNotFound : apiErrorMessage(e, t));
       setRegisterState("error");
     }
   };
@@ -165,7 +171,7 @@ function RegisterModal({ comp, onClose }) {
                 </p>
               )}
               {registerState === "error" && (
-                <p className="mt-2.5 text-right text-[12px] font-500 text-red-500">{r.registerFailed}</p>
+                <p className="mt-2.5 text-right text-[12px] font-500 text-red-500">{registerError || r.registerFailed}</p>
               )}
             </div>
           </div>

@@ -168,6 +168,7 @@ export const translations = {
       createToRegisterFn:(sport) => `Create your ${sport} profile to register`,
       completeCheck:   "Complete the check above to register",
       registerFailed:  "Couldn't register just now. Please try again.",
+      tournamentNotFound: "Tournament not found.",
       fallbackAthlete: "athlete",
     },
 
@@ -546,6 +547,15 @@ export const translations = {
       conflict:         "This action conflicts with the current state.",
       validation_error: "Please check the form fields and try again.",
       internal_error:   "Something went wrong. Please try again later.",
+      bad_request:      "Invalid request.",
+      /* POST /tournaments/:id/register */
+      tournament_not_open: "Registration is closed for this tournament.",
+      no_sport_profile:    "You need a profile in this sport first.",
+      no_rating:           "Your profile has no rating yet — complete your skill profile first.",
+      rating_too_low:      "Your rating is below this tournament's minimum.",
+      rating_too_high:     "Your rating is above this tournament's maximum.",
+      already_registered:  "You're already registered for this tournament.",
+      tournament_full:     "This tournament is full.",
     },
   },
 
@@ -706,6 +716,7 @@ export const translations = {
       createToRegisterFn:(sport) => `Создай профиль ${sport}, чтобы зарегистрироваться`,
       completeCheck:   "Заверши проверку выше, чтобы зарегистрироваться",
       registerFailed:  "Не удалось зарегистрироваться. Попробуй снова.",
+      tournamentNotFound: "Турнир не найден.",
       fallbackAthlete: "атлет",
     },
 
@@ -1083,6 +1094,15 @@ export const translations = {
       conflict:         "Действие конфликтует с текущим состоянием.",
       validation_error: "Проверьте поля формы и попробуйте снова.",
       internal_error:   "Что-то пошло не так. Попробуйте позже.",
+      bad_request:      "Некорректный запрос.",
+      /* POST /tournaments/:id/register */
+      tournament_not_open: "Регистрация на этот турнир закрыта.",
+      no_sport_profile:    "Сначала создайте профиль в этом виде спорта.",
+      no_rating:           "У вашего профиля ещё нет рейтинга — сначала завершите анкету навыков.",
+      rating_too_low:      "Ваш рейтинг ниже минимального для этого турнира.",
+      rating_too_high:     "Ваш рейтинг выше максимального для этого турнира.",
+      already_registered:  "Вы уже зарегистрированы на этот турнир.",
+      tournament_full:     "На турнире не осталось мест.",
     },
   },
 };
