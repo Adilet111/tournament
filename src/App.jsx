@@ -160,7 +160,7 @@ function RegisterModal({ comp, onClose }) {
             </div>
             <div className="mt-6 border-t border-ink-100 pt-4">
               <div className="flex items-center justify-between">
-                <div><span className="font-display text-[22px] font-700 text-ink-900">£{comp.price}</span><span className="ml-1 text-[12px] text-ink-500">{r.entry}</span></div>
+                <div><span className="font-display text-[22px] font-700 text-ink-900">{comp.price.toLocaleString('ru-RU')} ₸</span><span className="ml-1 text-[12px] text-ink-500">{r.entry}</span></div>
                 <Btn variant="primary" size="md" disabled={!valid || registerState === "submitting"} onClick={submitRegistration}>
                   {registerState === "submitting" ? r.registering : r.confirmCta}
                 </Btn>

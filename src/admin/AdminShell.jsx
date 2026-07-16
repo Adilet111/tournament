@@ -2,7 +2,7 @@
 import { useLang } from '../LangContext';
 import { LangSwitcher } from '../components/primitives';
 
-export const fmt = (n) => '£' + n.toLocaleString('en-GB');
+export const fmt = (n) => n.toLocaleString('ru-RU') + ' ₸';
 
 /* ---- icons (inline, stroke-based to match the clean system) ---- */
 export const Icon = {

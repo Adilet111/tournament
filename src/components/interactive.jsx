@@ -114,7 +114,7 @@ function CompetitionCard({ c, onRegister }) {
         </div>
         <div className="mt-5 flex items-center justify-between border-t border-ink-100 pt-4">
           <div>
-            <span className="font-display text-[20px] font-700 text-ink-900">£{c.price}</span>
+            <span className="font-display text-[20px] font-700 text-ink-900">{c.price.toLocaleString('ru-RU')} ₸</span>
             <span className="ml-1 text-[12px] text-ink-500">{t.card.entryLbl}</span>
           </div>
           <Btn variant="dark" size="sm" onClick={() => onRegister(c)}>{t.card.registerBtn}</Btn>

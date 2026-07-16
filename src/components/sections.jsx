@@ -192,7 +192,7 @@ function HeroSplit() {
             <div className="mt-1 text-[13px] text-ink-500">{h.card_location}</div>
             <div className="mt-3 flex items-center justify-between">
               <Pill tone="accent">{h.card_spots}</Pill>
-              <span className="font-display text-[15px] font-600 text-ink-900">£32</span>
+              <span className="font-display text-[15px] font-600 text-ink-900">5 000 ₸</span>
             </div>
           </div>
         </div>
