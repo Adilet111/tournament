@@ -169,6 +169,8 @@ export const translations = {
       completeCheck:   "Complete the check above to register",
       registerFailed:  "Couldn't register just now. Please try again.",
       tournamentNotFound: "Tournament not found.",
+      ageTooLowFn:  (n) => `This tournament requires age ${n} or older.`,
+      ageTooHighFn: (n) => `This tournament is limited to ages up to ${n}.`,
       fallbackAthlete: "athlete",
     },
 
@@ -559,10 +561,12 @@ export const translations = {
       validation_error: "Please check the form fields and try again.",
       internal_error:   "Something went wrong. Please try again later.",
       bad_request:      "Invalid request.",
-      /* POST /tournaments/:id/register — age_too_low / age_too_high are
-         deliberately absent: the backend message includes the age limit, and
-         apiErrorMessage falls back to it for unknown codes. */
+      /* POST /tournaments/:id/register. The age codes here are fallbacks —
+         the register modal interpolates the tournament's own limit via
+         register.ageTooLowFn / ageTooHighFn when it knows it. */
       birthdate_required:  "Your account has no birth date. Sign in again to add it.",
+      age_too_low:         "You're below this tournament's minimum age.",
+      age_too_high:        "You're above this tournament's maximum age.",
       tournament_not_open: "Registration is closed for this tournament.",
       no_sport_profile:    "You need a profile in this sport first.",
       no_rating:           "Your profile has no rating yet — complete your skill profile first.",
@@ -731,6 +735,8 @@ export const translations = {
       completeCheck:   "Заверши проверку выше, чтобы зарегистрироваться",
       registerFailed:  "Не удалось зарегистрироваться. Попробуй снова.",
       tournamentNotFound: "Турнир не найден.",
+      ageTooLowFn:  (n) => `Для участия нужно быть не младше ${n} ${ruForm(n, "года", "лет", "лет")}.`,
+      ageTooHighFn: (n) => `Для участия нужно быть не старше ${n} ${ruForm(n, "года", "лет", "лет")}.`,
       fallbackAthlete: "атлет",
     },
 
@@ -1120,9 +1126,12 @@ export const translations = {
       validation_error: "Проверьте поля формы и попробуйте снова.",
       internal_error:   "Что-то пошло не так. Попробуйте позже.",
       bad_request:      "Некорректный запрос.",
-      /* POST /tournaments/:id/register — для age_too_low / age_too_high
-         показываем сообщение бэкенда: в нём указан возрастной лимит. */
+      /* POST /tournaments/:id/register. Возрастные коды — запасной вариант:
+         модалка регистрации подставляет лимит турнира через
+         register.ageTooLowFn / ageTooHighFn, когда он известен. */
       birthdate_required:  "В аккаунте не указана дата рождения. Войдите снова, чтобы добавить её.",
+      age_too_low:         "Вы младше минимального возраста для этого турнира.",
+      age_too_high:        "Вы старше максимального возраста для этого турнира.",
       tournament_not_open: "Регистрация на этот турнир закрыта.",
       no_sport_profile:    "Сначала создайте профиль в этом виде спорта.",
       no_rating:           "У вашего профиля ещё нет рейтинга — сначала завершите анкету навыков.",

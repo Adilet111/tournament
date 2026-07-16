@@ -48,7 +48,14 @@ function RegisterModal({ comp, onClose }) {
     } catch (e) {
       // No profile in this sport → flip the modal back to the create-profile CTA.
       if (e?.code === "no_sport_profile") setProfileState("missing");
-      setRegisterError(e?.code === "not_found" ? r.tournamentNotFound : apiErrorMessage(e, t));
+      // Age gates: localize with the tournament's own limit when we know it;
+      // otherwise apiErrorMessage falls back to the static t.errors text.
+      const message =
+        e?.code === "not_found" ? r.tournamentNotFound
+        : e?.code === "age_too_low" && comp.minAge != null ? r.ageTooLowFn(comp.minAge)
+        : e?.code === "age_too_high" && comp.maxAge != null ? r.ageTooHighFn(comp.maxAge)
+        : apiErrorMessage(e, t);
+      setRegisterError(message);
       setRegisterState("error");
     }
   };

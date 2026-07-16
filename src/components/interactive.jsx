@@ -38,6 +38,9 @@ const normalizeT = (t, slugMap, cities) => ({
   spots: t.freePlaces ?? (t.capacity != null ? Math.max(0, t.capacity - (t.occupiedPlaces ?? 0)) : null),
   capacity: t.capacity ?? null,
   cats: computeCats(t.minRating ?? 0, t.maxRating ?? 3000),
+  // Age gates — used to localize age_too_low / age_too_high register errors.
+  minAge: t.minAge ?? null,
+  maxAge: t.maxAge ?? null,
   distance: '',
   currency: t.currency || 'KZT',
 });
