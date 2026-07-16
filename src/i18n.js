@@ -515,14 +515,6 @@ export const translations = {
         basketball: "Basketball",
         padel:      "Padel",
       },
-      locations: {
-        london:    "London, UK",
-        berlin:    "Berlin, DE",
-        barcelona: "Barcelona, ES",
-        amsterdam: "Amsterdam, NL",
-        lisbon:    "Lisbon, PT",
-        milan:     "Milan, IT",
-      },
       windows: {
         week:  "This week",
         month: "This month",
@@ -1060,14 +1052,6 @@ export const translations = {
         triathlon:  "Триатлон",
         basketball: "Баскетбол",
         padel:      "Падель",
-      },
-      locations: {
-        london:    "Лондон, Великобритания",
-        berlin:    "Берлин, Германия",
-        barcelona: "Барселона, Испания",
-        amsterdam: "Амстердам, Нидерланды",
-        lisbon:    "Лиссабон, Португалия",
-        milan:     "Милан, Италия",
       },
       windows: {
         week:  "Эта неделя",

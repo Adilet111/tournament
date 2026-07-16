@@ -9,15 +9,6 @@ export const SPORTS = [
   { id: "padel",      label: "Padel" },
 ];
 
-export const LOCATIONS = [
-  { id: "london",    label: "London, UK" },
-  { id: "berlin",    label: "Berlin, DE" },
-  { id: "barcelona", label: "Barcelona, ES" },
-  { id: "amsterdam", label: "Amsterdam, NL" },
-  { id: "lisbon",    label: "Lisbon, PT" },
-  { id: "milan",     label: "Milan, IT" },
-];
-
 export const WINDOWS = [
   { id: "week",  label: "This week" },
   { id: "month", label: "This month" },
@@ -52,6 +43,5 @@ function labelFor(list, id) {
 }
 
 export const sportLabel    = (id) => labelFor(SPORTS, id);
-export const locationLabel = (id) => labelFor(LOCATIONS, id);
 export const windowLabel   = (id) => labelFor(WINDOWS, id);
 export const categoryLabel = (id) => labelFor(CATEGORIES, id);

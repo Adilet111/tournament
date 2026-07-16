@@ -1,6 +1,7 @@
 /* Rally Admin — dashboard views. */
 import { useState, useEffect } from 'react';
-import { LOCATIONS, CATEGORIES } from '../data';
+import { CATEGORIES } from '../data';
+import { useCities, cityLabel } from '../lib/cities';
 import { useLang } from '../LangContext';
 import { apiErrorMessage } from '../i18n';
 import {
@@ -40,12 +41,6 @@ function ratingRange(cats) {
   if (!bands.length) return [0, 3000];
   return [Math.min(...bands.map((b) => b[0])), Math.max(...bands.map((b) => b[1]))];
 }
-
-// "London, UK" -> "London"
-const cityName = (id) => {
-  const loc = LOCATIONS.find((l) => l.id === id);
-  return loc ? loc.label.split(',')[0].trim() : id;
-};
 
 /* ============================================================ OVERVIEW === */
 function StatCard({ label, value, sub, accent }) {
@@ -156,8 +151,9 @@ export function Overview({ setView }) {
    Backed by GET /admin/tournaments (every status). "Manage" opens the lifecycle
    / edit / delete panel. */
 export function Competitions({ setView }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const c0 = t.admin.competitions;
+  const cities = useCities();
   const [filter, setFilter] = useState('all');
   const [tournaments, setTournaments] = useState([]);
   const [sportsMap, setSportsMap] = useState({});
@@ -230,7 +226,7 @@ export function Competitions({ setView }) {
                 <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-ink-50 font-mono text-[11px] font-600 uppercase text-ink-500">{(t.data.sports[c.sport] ?? c.sport ?? '???').slice(0, 3)}</span>
                 <div className="min-w-0">
                   <div className="font-600 text-[15px] text-ink-900">{c.title}</div>
-                  <div className="mt-0.5 flex items-center gap-2 text-[12.5px] text-ink-500">{c.location} · {c.date}</div>
+                  <div className="mt-0.5 flex items-center gap-2 text-[12.5px] text-ink-500">{cityLabel(cities, c.location, lang) || '—'} · {c.date}</div>
                 </div>
               </div>
               <div><StatusDot status={c.status} /></div>
@@ -870,12 +866,13 @@ export function Sports() {
 
 /* ============================================================== CREATE === */
 export function CreateCompetition({ setView }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const cr = t.admin.create;
   const [f, setF] = useState({ title: '', sport: '', location: '', date: '', price: '', capacity: '', cats: [] });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [apiSports, setApiSports] = useState([]);
+  const cities = useCities();
   useEffect(() => { listSports().then((d) => setApiSports(Array.isArray(d) ? d : [])).catch(() => {}); }, []);
   const toggleCat = (id) => setF((s) => ({ ...s, cats: s.cats.includes(id) ? s.cats.filter((x) => x !== id) : [...s.cats, id] }));
   const valid = f.title.trim() && f.sport && f.location && f.date && f.capacity;
@@ -885,7 +882,8 @@ export function CreateCompetition({ setView }) {
     setSubmitting(true);
     setError(null);
     const [minRating, maxRating] = ratingRange(f.cats);
-    const city = cityName(f.location);
+    // `city` is the canonical slug from /cities — the browse filter matches on it.
+    const city = f.location;
     const entryFee = Number(f.price) || 0;
     const capacity = Number(f.capacity);
     try {
@@ -901,7 +899,7 @@ export function CreateCompetition({ setView }) {
         entryFee,
         // Fields without a form input yet — reasonable placeholders for now:
         description: 'Single elimination tournament',
-        location: `${city} venue`,
+        location: `${cityLabel(cities, city, 'en')} venue`,
         prizePool: 0,
         currency: 'KZT',
         bracketInfo: `${capacity}-player single elimination`,
@@ -941,7 +939,7 @@ export function CreateCompetition({ setView }) {
               <span className={lbl}>{cr.cityLbl}</span>
               <select value={f.location} onChange={(e) => setF({ ...f, location: e.target.value })} className={field}>
                 <option value="">{cr.selectCity}</option>
-                {LOCATIONS.map((l) => <option key={l.id} value={l.id}>{t.data.locations[l.id] ?? l.label}</option>)}
+                {cities.map((c) => <option key={c.slug} value={c.slug}>{lang === 'ru' ? c.ru : c.en}</option>)}
               </select>
             </div>
             <div>

@@ -7,6 +7,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useLang } from '../LangContext';
 import { useSession } from '../SessionContext';
 import { listSports, getProfile, getMyTournaments } from '../lib/api';
+import { useCities, cityLabel } from '../lib/cities';
 import { placeElo } from '../lib/rank';
 import { Logo, Btn, LangSwitcher, SportTag, Pill } from './primitives';
 import { normalizeRank } from './onboarding';
@@ -62,11 +63,12 @@ function SportProfileCard({ slug, rank, lp }) {
    the tournament's sportId to the sport slug used by SportTag / t.data.sports. */
 function TournamentRow({ row, slugMap }) {
   const { t, lang } = useLang();
+  const cities = useCities();
   const slug = slugMap[row.sportId] || row.sportId;
   const date = row.startsAt
     ? new Date(row.startsAt).toLocaleDateString(lang === 'ru' ? 'ru-RU' : 'en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
     : '—';
-  const place = t.data.locations[row.location] ?? row.city ?? row.location ?? '';
+  const place = cityLabel(cities, row.city ?? row.location, lang);
   return (
     <li className="flex items-center gap-4 rounded-2xl border border-ink-100 bg-white px-5 py-4">
       <div className="min-w-0 flex-1">
