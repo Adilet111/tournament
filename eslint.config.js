@@ -8,7 +8,7 @@ export default defineConfig([
   // dist = build output; webapp = the original standalone design prototype
   // (not part of the Vite build); new_code = scratch experiments. Lint targets
   // the shipped app under src/ only.
-  globalIgnores(['dist', 'webapp', 'new_code']),
+  globalIgnores(['dist', 'webapp', 'new_code', 'new code']),
   {
     files: ['**/*.{js,jsx}'],
     extends: [

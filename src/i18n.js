@@ -14,6 +14,9 @@ export const translations = {
       compete:    "Compete",
       howItWorks: "How it works",
       organize:   "Organize",
+      players:    "Players",
+      sponsors:   "Sponsors",
+      recruiters: "Recruiters",
       signIn:     "Sign in",
       register:   "Register",
     },
@@ -142,6 +145,68 @@ export const translations = {
       privacy:   "Privacy",
       terms:     "Terms",
       cookies:   "Cookies",
+    },
+
+    /* Audience pages: Players explainer + Organize/Sponsors/Recruiters contact pages */
+    audience: {
+      contact: {
+        nameLbl:     "Name",
+        phoneLbl:    "Phone number",
+        emailLbl:    "Email",
+        namePh:      "Jordan Ellis",
+        phonePh:     "+7 777 123 4567",
+        emailPh:     "jordan.ellis@gmail.com",
+        submit:      "Send my details",
+        thanksTitle: "Thanks — we've got it",
+      },
+      players: {
+        eyebrow:   "For players",
+        h1_1:      "Play more.",
+        h1_accent: "Get discovered.",
+        body:      "Rally exists so you can enjoy competing, find people who play the way you do, and build a rating that speaks for itself — one scouts can actually find.",
+        createCta: "Create your profile",
+        browseCta: "Browse competitions",
+        pillars: [
+          {
+            title: "Enjoy your time",
+            body:  "Join competitions across running, cycling, tennis, football and more — casual or serious, it's your call.",
+          },
+          {
+            title: "Find like-minded people",
+            body:  "Meet athletes at your level and pace. Rally matches you into events and categories where you'll actually have fun.",
+          },
+          {
+            title: "Build your rating",
+            body:  "Every competition you enter builds a skill profile and rating for your sport — a real record of how you play.",
+          },
+          {
+            title: "Get seen by scouts",
+            body:  "Your rating is visible to recruiters and scouts looking for their next signing. Compete well, get noticed.",
+          },
+        ],
+        ctaTitle: "Your next result could be the one that gets you noticed.",
+        ctaBody:  "Register, compete, and let your rating do the talking.",
+        ctaBtn:   "Get started",
+      },
+      organize: {
+        eyebrow:    "For organizers",
+        title:      "Want to run a competition?",
+        intro:      "Leave your contact details and we'll reach out to help you get your event set up on Rally.",
+        thanksBody: "We'll be in touch shortly to help you set up your competition.",
+      },
+      sponsors: {
+        eyebrow:    "For sponsors",
+        title:      "Sponsor a competition.",
+        intro:      "Interested in sponsoring events on Rally? Leave your contact details and we'll follow up.",
+        thanksBody: "We'll reach out with sponsorship opportunities that fit.",
+      },
+      recruiters: {
+        eyebrow:    "For recruiters",
+        title:      "Find your next signing.",
+        intro:      "Rally gives every athlete a real, competition-earned rating across their sport — searchable and comparable, so you can spot rising talent early.",
+        body:       "Leave your contact details and we'll help you get set up to browse and follow rated players in the sports you scout.",
+        thanksBody: "We'll be in touch to help you start discovering talent on Rally.",
+      },
     },
 
     register: {
@@ -608,6 +673,9 @@ export const translations = {
       compete:    "Участвовать",
       howItWorks: "Как это работает",
       organize:   "Организовать",
+      players:    "Игрокам",
+      sponsors:   "Спонсорам",
+      recruiters: "Скаутам",
       signIn:     "Войти",
       register:   "Регистрация",
     },
@@ -733,6 +801,68 @@ export const translations = {
       privacy:   "Конфиденциальность",
       terms:     "Условия",
       cookies:   "Куки",
+    },
+
+    /* Страницы для аудиторий: игроки + контактные страницы (организаторы/спонсоры/скауты) */
+    audience: {
+      contact: {
+        nameLbl:     "Имя",
+        phoneLbl:    "Номер телефона",
+        emailLbl:    "Email",
+        namePh:      "Алексей Иванов",
+        phonePh:     "+7 777 123 4567",
+        emailPh:     "aleksey.ivanov@gmail.com",
+        submit:      "Отправить данные",
+        thanksTitle: "Спасибо — заявка получена",
+      },
+      players: {
+        eyebrow:   "Игрокам",
+        h1_1:      "Играй больше.",
+        h1_accent: "Стань заметным.",
+        body:      "Rally создан, чтобы ты получал удовольствие от соревнований, находил людей, которые играют так же, как ты, и строил рейтинг, который говорит сам за себя — и который скауты действительно могут найти.",
+        createCta: "Создать профиль",
+        browseCta: "Смотреть соревнования",
+        pillars: [
+          {
+            title: "Получай удовольствие",
+            body:  "Участвуй в соревнованиях по бегу, велоспорту, теннису, футболу и другим видам спорта — любительски или всерьёз, решать тебе.",
+          },
+          {
+            title: "Находи единомышленников",
+            body:  "Знакомься с атлетами твоего уровня и темпа. Rally подбирает мероприятия и категории, где тебе действительно будет интересно.",
+          },
+          {
+            title: "Строй свой рейтинг",
+            body:  "Каждое соревнование пополняет твой профиль навыков и рейтинг в виде спорта — реальную историю того, как ты играешь.",
+          },
+          {
+            title: "Будь на виду у скаутов",
+            body:  "Твой рейтинг видят рекрутеры и скауты, которые ищут новых игроков. Выступай хорошо — тебя заметят.",
+          },
+        ],
+        ctaTitle: "Твой следующий результат может стать тем, благодаря которому тебя заметят.",
+        ctaBody:  "Зарегистрируйся, соревнуйся — и пусть рейтинг говорит за тебя.",
+        ctaBtn:   "Начать",
+      },
+      organize: {
+        eyebrow:    "Организаторам",
+        title:      "Хочешь провести соревнование?",
+        intro:      "Оставь контактные данные — мы свяжемся и поможем запустить твоё мероприятие на Rally.",
+        thanksBody: "Мы скоро свяжемся, чтобы помочь организовать твоё соревнование.",
+      },
+      sponsors: {
+        eyebrow:    "Спонсорам",
+        title:      "Стань спонсором соревнований.",
+        intro:      "Хочешь спонсировать мероприятия на Rally? Оставь контактные данные — мы свяжемся с тобой.",
+        thanksBody: "Мы предложим подходящие варианты спонсорства.",
+      },
+      recruiters: {
+        eyebrow:    "Скаутам",
+        title:      "Найди своего следующего игрока.",
+        intro:      "Rally даёт каждому атлету реальный, заработанный на соревнованиях рейтинг — с поиском и сравнением, чтобы замечать восходящие таланты раньше других.",
+        body:       "Оставь контактные данные — мы поможем настроить доступ к просмотру и отслеживанию игроков с рейтингом в нужных тебе видах спорта.",
+        thanksBody: "Мы свяжемся, чтобы помочь тебе начать поиск талантов на Rally.",
+      },
     },
 
     register: {

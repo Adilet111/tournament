@@ -81,10 +81,12 @@ export function Nav({ onAuth, onCreateProfile }) {
     window.addEventListener("scroll", onScroll);
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+  /* Audience pages: the tabs link to dedicated hash routes (see App.jsx). */
   const links = [
-    { label: t.nav.compete,    id: "browse" },
-    { label: t.nav.howItWorks, id: "participate" },
-    { label: t.nav.organize,   id: "organize" },
+    { label: t.nav.players,    hash: "players" },
+    { label: t.nav.organize,   hash: "organize" },
+    { label: t.nav.sponsors,   hash: "sponsors" },
+    { label: t.nav.recruiters, hash: "recruiters" },
   ];
   return (
     <header className={"fixed inset-x-0 top-0 z-40 transition-all " + (scrolled ? "border-b border-ink-100 bg-white/85 backdrop-blur-md" : "border-b border-transparent bg-transparent")}>
@@ -92,10 +94,10 @@ export function Nav({ onAuth, onCreateProfile }) {
         <Logo />
         <nav className="hidden items-center gap-1 md:flex">
           {links.map((l) => (
-            <button key={l.id} onClick={() => scrollToId(l.id)}
+            <a key={l.hash} href={"#" + l.hash}
               className="rounded-full px-3.5 py-2 text-[14.5px] font-500 text-ink-700 transition-colors hover:bg-ink-50 hover:text-ink-900">
               {l.label}
-            </button>
+            </a>
           ))}
         </nav>
         <div className="hidden items-center gap-2 md:flex">
@@ -120,8 +122,8 @@ export function Nav({ onAuth, onCreateProfile }) {
         <div className="border-t border-ink-100 bg-white px-6 py-4 md:hidden">
           <div className="flex flex-col gap-1">
             {links.map((l) => (
-              <button key={l.id} onClick={() => { scrollToId(l.id); setOpen(false); }}
-                className="rounded-lg px-3 py-2.5 text-left text-[15px] font-500 text-ink-700 hover:bg-ink-50">{l.label}</button>
+              <a key={l.hash} href={"#" + l.hash} onClick={() => setOpen(false)}
+                className="rounded-lg px-3 py-2.5 text-left text-[15px] font-500 text-ink-700 hover:bg-ink-50">{l.label}</a>
             ))}
             <div className="mt-2 flex items-center gap-2">
               <LangSwitcher />
@@ -148,7 +150,7 @@ export function Nav({ onAuth, onCreateProfile }) {
 }
 
 /* ---- Hero variants ---- */
-function HeroEyebrow({ children }) {
+export function HeroEyebrow({ children }) {
   return (
     <div className="inline-flex items-center gap-2.5 rounded-full border border-ink-100 bg-white px-3.5 py-1.5">
       <span className="font-mono text-[11px] uppercase tracking-[0.12em] text-ink-500">{children}</span>

@@ -11,6 +11,7 @@ import { ProfileModal } from './components/profile';
 import { ProfileOnboarding } from './components/onboarding';
 import { AdminApp } from './admin/AdminApp';
 import { ProfilePage } from './components/profilePage';
+import { PlayersPage, OrganizePage, SponsorsPage, RecruitersPage } from './components/audiencePages';
 import { getProfile, submitProfileAnswers, registerForTournament } from './lib/api';
 import { useCities, cityLabel } from './lib/cities';
 import { goHome } from './lib/nav';
@@ -250,11 +251,13 @@ function RallyApp() {
 }
 
 /* Tiny hash router: '#admin' shows the organizer dashboard, '#profile' the
-   signed-in user's profile page, anything else the landing page. Non-admins are
-   bounced off '#admin'; signed-out users are bounced off '#profile'. */
+   signed-in user's profile page, '#players'/'#organize'/'#sponsors'/'#recruiters'
+   the audience pages, anything else the landing page. Non-admins are bounced
+   off '#admin'; signed-out users are bounced off '#profile'. */
+const AUDIENCE_ROUTES = { players: PlayersPage, organize: OrganizePage, sponsors: SponsorsPage, recruiters: RecruitersPage };
 const readRoute = () => {
   const h = window.location.hash.replace(/^#\/?/, '').toLowerCase();
-  return h === 'admin' || h === 'profile' ? h : 'home';
+  return h === 'admin' || h === 'profile' || h in AUDIENCE_ROUTES ? h : 'home';
 };
 
 function Router() {
@@ -266,6 +269,10 @@ function Router() {
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
+
+  // Hash routes have no matching element id, so the browser keeps the scroll
+  // position of the previous page — reset it when the route changes.
+  useEffect(() => { window.scrollTo(0, 0); }, [route]);
 
   // Redirect users away from routes they can't see (non-admins off #admin,
   // signed-out users off #profile). Wait for the /auth/me answer first —
@@ -281,6 +288,10 @@ function Router() {
   }
   if (route === 'profile' && isAuthed) {
     return <ProfilePage onExit={goHome} />;
+  }
+  if (route in AUDIENCE_ROUTES) {
+    const Page = AUDIENCE_ROUTES[route];
+    return <Page key={route} />;
   }
   return <RallyApp />;
 }
