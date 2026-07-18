@@ -13,6 +13,7 @@ export const translations = {
     nav: {
       compete:    "Compete",
       howItWorks: "How it works",
+      main:       "Main",
       organize:   "Organize",
       players:    "Players",
       sponsors:   "Sponsors",
@@ -672,6 +673,7 @@ export const translations = {
     nav: {
       compete:    "Участвовать",
       howItWorks: "Как это работает",
+      main:       "Главная",
       organize:   "Организовать",
       players:    "Игрокам",
       sponsors:   "Спонсорам",

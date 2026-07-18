@@ -81,13 +81,18 @@ export function Nav({ onAuth, onCreateProfile }) {
     window.addEventListener("scroll", onScroll);
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
-  /* Audience pages: the tabs link to dedicated hash routes (see App.jsx). */
+  /* Audience pages: the tabs link to dedicated hash routes (see App.jsx).
+     "Main" (#top) lands on the same page as clicking the logo. The current
+     tab is derived from the hash — any non-audience hash means the landing. */
   const links = [
+    { label: t.nav.main,       hash: "top" },
     { label: t.nav.players,    hash: "players" },
     { label: t.nav.organize,   hash: "organize" },
     { label: t.nav.sponsors,   hash: "sponsors" },
     { label: t.nav.recruiters, hash: "recruiters" },
   ];
+  const route = window.location.hash.replace(/^#\/?/, "").toLowerCase();
+  const current = links.some((l) => l.hash === route) ? route : "top";
   return (
     <header className={"fixed inset-x-0 top-0 z-40 transition-all " + (scrolled ? "border-b border-ink-100 bg-white/85 backdrop-blur-md" : "border-b border-transparent bg-transparent")}>
       <div className="mx-auto flex h-[68px] max-w-6xl items-center justify-between px-6">
@@ -95,7 +100,9 @@ export function Nav({ onAuth, onCreateProfile }) {
         <nav className="hidden items-center gap-1 md:flex">
           {links.map((l) => (
             <a key={l.hash} href={"#" + l.hash}
-              className="rounded-full px-3.5 py-2 text-[14.5px] font-500 text-ink-700 transition-colors hover:bg-ink-50 hover:text-ink-900">
+              className={"rounded-full px-3.5 py-2 text-[14.5px] transition-colors " + (l.hash === current
+                ? "bg-ink-50 font-600 text-ink-900"
+                : "font-500 text-ink-700 hover:bg-ink-50 hover:text-ink-900")}>
               {l.label}
             </a>
           ))}
@@ -123,7 +130,9 @@ export function Nav({ onAuth, onCreateProfile }) {
           <div className="flex flex-col gap-1">
             {links.map((l) => (
               <a key={l.hash} href={"#" + l.hash} onClick={() => setOpen(false)}
-                className="rounded-lg px-3 py-2.5 text-left text-[15px] font-500 text-ink-700 hover:bg-ink-50">{l.label}</a>
+                className={"rounded-lg px-3 py-2.5 text-left text-[15px] " + (l.hash === current
+                  ? "bg-ink-50 font-600 text-ink-900"
+                  : "font-500 text-ink-700 hover:bg-ink-50")}>{l.label}</a>
             ))}
             <div className="mt-2 flex items-center gap-2">
               <LangSwitcher />
