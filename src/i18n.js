@@ -370,6 +370,30 @@ export const translations = {
       creating:         "Creating…",
       nameTaken:        "A team with this name already exists in this sport.",
       captainNote:      "You'll become the team captain and get an invite link to share.",
+
+      /* Team detail page (GET /teams/:id) */
+      backToProfile:     "Back to profile",
+      createdFn:         (d) => `Created ${d}`,
+      rosterTitle:       "Roster",
+      colMember:         "Member",
+      colRole:           "Role",
+      colRating:         "Rating",
+      colJoined:         "Joined",
+      transferCaptaincy: "Transfer captaincy",
+      transferHint:      "Choose the new captain from the roster.",
+      makeCaptain:       "Make captain",
+      deleteTeam:        "Delete team",
+      leaveTeam:         "Leave team",
+      remove:            "Remove",
+      teamLoadFailed:    "Couldn't load this team.",
+      confirmLeaveFn:    (name) => `Leave ${name}?`,
+      confirmLeaveBody:  "You can rejoin later with a valid invite link.",
+      confirmRemoveFn:   (name) => `Remove ${name} from the team?`,
+      confirmRemoveBody: "Removal is permanent — they won't be able to rejoin, even with an invite link.",
+      confirmTransferFn: (name) => `Make ${name} the captain?`,
+      confirmTransferBody: "You'll become a regular member.",
+      confirmDeleteFn:   (name) => `Delete ${name}?`,
+      confirmDeleteBody: "This can't be undone. Teams with tournament history can't be deleted.",
     },
 
     admin: {
@@ -693,8 +717,12 @@ export const translations = {
       rating_too_high:     "Your rating is above this tournament's maximum.",
       already_registered:  "You're already registered for this tournament.",
       tournament_full:     "This tournament is full.",
-      /* POST /teams */
-      team_name_taken:     "A team with this name already exists in this sport.",
+      /* teams */
+      team_name_taken:        "A team with this name already exists in this sport.",
+      not_team_member:        "You're not a member of this team.",
+      not_captain:            "Only the team captain can do this.",
+      captain_cannot_leave:   "The captain can't leave — transfer captaincy or delete the team first.",
+      team_has_registrations: "This team has tournament history and can't be deleted.",
     },
   },
 
@@ -1057,6 +1085,30 @@ export const translations = {
       creating:         "Создаём…",
       nameTaken:        "Команда с таким названием уже есть в этом виде спорта.",
       captainNote:      "Вы станете капитаном команды и получите ссылку-приглашение.",
+
+      /* Страница команды (GET /teams/:id) */
+      backToProfile:     "К профилю",
+      createdFn:         (d) => `Создана ${d}`,
+      rosterTitle:       "Состав",
+      colMember:         "Игрок",
+      colRole:           "Роль",
+      colRating:         "Рейтинг",
+      colJoined:         "В команде с",
+      transferCaptaincy: "Передать капитанство",
+      transferHint:      "Выберите нового капитана из состава.",
+      makeCaptain:       "Назначить капитаном",
+      deleteTeam:        "Удалить команду",
+      leaveTeam:         "Покинуть команду",
+      remove:            "Удалить",
+      teamLoadFailed:    "Не удалось загрузить команду.",
+      confirmLeaveFn:    (name) => `Покинуть команду «${name}»?`,
+      confirmLeaveBody:  "Вы сможете вернуться позже по действующей ссылке-приглашению.",
+      confirmRemoveFn:   (name) => `Удалить ${name} из команды?`,
+      confirmRemoveBody: "Удаление необратимо — игрок не сможет вернуться даже по ссылке-приглашению.",
+      confirmTransferFn: (name) => `Назначить ${name} капитаном?`,
+      confirmTransferBody: "Вы станете обычным участником.",
+      confirmDeleteFn:   (name) => `Удалить команду «${name}»?`,
+      confirmDeleteBody: "Это действие необратимо. Команды с турнирной историей удалить нельзя.",
     },
 
     admin: {
@@ -1379,8 +1431,12 @@ export const translations = {
       rating_too_high:     "Ваш рейтинг выше максимального для этого турнира.",
       already_registered:  "Вы уже зарегистрированы на этот турнир.",
       tournament_full:     "На турнире не осталось мест.",
-      /* POST /teams */
-      team_name_taken:     "Команда с таким названием уже есть в этом виде спорта.",
+      /* teams */
+      team_name_taken:        "Команда с таким названием уже есть в этом виде спорта.",
+      not_team_member:        "Вы не состоите в этой команде.",
+      not_captain:            "Это может сделать только капитан команды.",
+      captain_cannot_leave:   "Капитан не может покинуть команду — сначала передайте капитанство или удалите команду.",
+      team_has_registrations: "У команды есть турнирная история, её нельзя удалить.",
     },
   },
 };

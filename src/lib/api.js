@@ -192,6 +192,39 @@ export function listMyTeams() {
   return get('/teams/mine');
 }
 
+/* GET /teams/:id — one team plus `myRole` and the active roster (`members`:
+   userId, name, email, role, rating in the team's sport or null, joinedAt).
+   Members and admins only: 403 not_team_member, 404 not_found. */
+export function getTeam(id) {
+  return get(`/teams/${seg(id)}`);
+}
+
+/* POST /teams/:id/leave — leave a team. The captain can't leave
+   (409 captain_cannot_leave) — transfer captaincy or delete the team instead.
+   Someone who left voluntarily may rejoin via a valid invite link. */
+export function leaveTeam(id) {
+  return post(`/teams/${seg(id)}/leave`, {});
+}
+
+/* POST /teams/:id/transfer-captain — captain hands captaincy to another active
+   member (body { userId }); the caller becomes a plain member. */
+export function transferTeamCaptain(id, userId) {
+  return post(`/teams/${seg(id)}/transfer-captain`, { userId });
+}
+
+/* DELETE /teams/:id/members/:userId — captain removes (bans) a member: the
+   row keeps status 'removed' and blocks rejoining forever. Rotate the invite
+   link afterwards if it may have leaked. */
+export function removeTeamMember(id, userId) {
+  return del(`/teams/${seg(id)}/members/${seg(userId)}`);
+}
+
+/* DELETE /teams/:id — captain deletes the team. Blocked once the team has any
+   tournament registration, even withdrawn (409 team_has_registrations). */
+export function deleteTeam(id) {
+  return del(`/teams/${seg(id)}`);
+}
+
 /* ----------------------------------------------------------------- cities --- */
 
 /* GET /cities — supported cities (public): [{ slug, en, ru }]. Tournaments

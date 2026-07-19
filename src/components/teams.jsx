@@ -28,7 +28,7 @@ function PlusIcon() {
   );
 }
 
-function TeamLogo({ team, size = 'h-12 w-12 text-[16px]' }) {
+export function TeamLogo({ team, size = 'h-12 w-12 text-[16px]' }) {
   return team.logoUrl ? (
     <img src={team.logoUrl} alt="" className={`${size} rounded-xl bg-ink-50 object-cover`} />
   ) : (
@@ -38,7 +38,7 @@ function TeamLogo({ team, size = 'h-12 w-12 text-[16px]' }) {
   );
 }
 
-function RoleBadge({ role }) {
+export function RoleBadge({ role }) {
   const { t } = useLang();
   return role === 'captain' ? (
     <span className="inline-flex items-center rounded-full bg-accent px-2.5 py-1 text-[12px] font-700 text-white">

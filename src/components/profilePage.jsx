@@ -8,6 +8,7 @@ import { useLang } from '../LangContext';
 import { useSession } from '../SessionContext';
 import { listSports, getProfile, getMyTournaments } from '../lib/api';
 import { useCities, cityLabel } from '../lib/cities';
+import { goToTeam } from '../lib/nav';
 import { placeElo } from '../lib/rank';
 import { Logo, Btn, LangSwitcher, SportTag, Pill } from './primitives';
 import { normalizeRank } from './onboarding';
@@ -194,9 +195,8 @@ export function ProfilePage({ onExit }) {
               )}
             </div>
 
-            {/* teams (GET /teams/mine + Create Team modal) — the onOpenTeam
-                handler arrives with the team detail page. */}
-            <MyTeamsSection />
+            {/* teams (GET /teams/mine + Create Team modal); cards open #team/<id> */}
+            <MyTeamsSection onOpenTeam={(team) => goToTeam(team.id)} />
 
             {/* upcoming tournaments (GET /me/tournaments → upcoming) */}
             <h2 className="font-display mt-10 text-[20px] font-700 text-ink-900">{pp.upcoming}</h2>
