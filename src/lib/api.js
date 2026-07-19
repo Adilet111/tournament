@@ -173,6 +173,16 @@ export function deleteRegistration(id, userId) {
   return del(`/tournaments/${seg(id)}/registrations/${seg(userId)}`);
 }
 
+/* ------------------------------------------------------------------ teams ---
+   Team endpoints (see NEW.md). Joining a team is by invite link only. */
+
+/* GET /teams/mine — teams the signed-in user is an active member of. Each item
+   carries `myRole` ('captain' | 'member'), `sportName`/`sportSlug` and
+   `memberCount` on top of the base team fields. */
+export function listMyTeams() {
+  return get('/teams/mine');
+}
+
 /* ----------------------------------------------------------------- cities --- */
 
 /* GET /cities — supported cities (public): [{ slug, en, ru }]. Tournaments

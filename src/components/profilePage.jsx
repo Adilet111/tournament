@@ -11,6 +11,7 @@ import { useCities, cityLabel } from '../lib/cities';
 import { placeElo } from '../lib/rank';
 import { Logo, Btn, LangSwitcher, SportTag, Pill } from './primitives';
 import { normalizeRank } from './onboarding';
+import { MyTeamsSection } from './teams';
 
 function initials(name) {
   return (name || '')
@@ -192,6 +193,10 @@ export function ProfilePage({ onExit }) {
                 </div>
               )}
             </div>
+
+            {/* teams (GET /teams/mine) — create/open handlers arrive with the
+                Create Team modal and the team detail page. */}
+            <MyTeamsSection />
 
             {/* upcoming tournaments (GET /me/tournaments → upcoming) */}
             <h2 className="font-display mt-10 text-[20px] font-700 text-ink-900">{pp.upcoming}</h2>

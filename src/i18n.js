@@ -344,6 +344,18 @@ export const translations = {
       noMatches:        "No matches played yet — your finished tournaments will appear here.",
     },
 
+    teams: {
+      title:       "My teams",
+      createTeam:  "Create team",
+      roleCaptain: "Captain",
+      roleMember:  "Member",
+      membersFn:   (n) => `${n} ${n === 1 ? "member" : "members"}`,
+      emptyTitle:  "You're not on any team yet",
+      emptyHint:   "Create a team or ask a captain for an invite link.",
+      loadFailed:  "Couldn't load your teams.",
+      retry:       "Retry",
+    },
+
     admin: {
       badge:             "Organizer",
       backToSite:        "Back to site",
@@ -999,6 +1011,18 @@ export const translations = {
       noUpcoming:       "Предстоящих турниров нет — найдите соревнование и зарегистрируйтесь.",
       matchHistory:     "История матчей",
       noMatches:        "Сыгранных матчей пока нет — завершённые турниры появятся здесь.",
+    },
+
+    teams: {
+      title:       "Мои команды",
+      createTeam:  "Создать команду",
+      roleCaptain: "Капитан",
+      roleMember:  "Участник",
+      membersFn:   (n) => `${n} ${ruForm(n, "участник", "участника", "участников")}`,
+      emptyTitle:  "Вы пока не состоите ни в одной команде",
+      emptyHint:   "Создайте команду или попросите у капитана ссылку-приглашение.",
+      loadFailed:  "Не удалось загрузить ваши команды.",
+      retry:       "Повторить",
     },
 
     admin: {
