@@ -18,3 +18,10 @@ export function goToProfile() {
 export function goToTeam(teamId) {
   window.location.hash = `team/${teamId}`;
 }
+
+/* Absolute shareable URL for a team invite token. The backend only stores the
+   token (its joinPath is API-relative); the app owns the user-facing route —
+   '#teams/join/<token>', served by the join landing page. */
+export function teamJoinUrl(token) {
+  return `${window.location.origin}${window.location.pathname}#teams/join/${token}`;
+}

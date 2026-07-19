@@ -2,15 +2,18 @@
    Shows the team header (logo, sport, my role), the active roster from
    GET /teams/:id, and the role-gated actions from NEW.md: captains can
    transfer captaincy, remove (ban) members and delete the team; members can
-   leave. The invite-link card (DESIGN_PROMPTS.md §4) slots in under the
-   header when it lands. The route is members-only — the backend answers
-   403 not_team_member / 404 not_found, both rendered as the error state. */
+   leave. Captains also get the invite-link card under the header — sharing
+   that link is the only way to add members. The route is members-only — the
+   backend answers 403 not_team_member / 404 not_found, both rendered as the
+   error state. */
 import { useCallback, useEffect, useState } from 'react';
 import { useLang } from '../LangContext';
 import { apiErrorMessage } from '../i18n';
 import {
-  getTeam, listSports, leaveTeam, transferTeamCaptain, removeTeamMember, deleteTeam,
+  getTeam, getTeamInvite, rotateTeamInvite, listSports,
+  leaveTeam, transferTeamCaptain, removeTeamMember, deleteTeam,
 } from '../lib/api';
+import { teamJoinUrl } from '../lib/nav';
 import { Logo, Btn, LangSwitcher, Pill } from './primitives';
 import { TeamLogo, RoleBadge } from './teams';
 
@@ -74,6 +77,129 @@ function ConfirmDialog({ title, body, confirmLabel, danger = false, onConfirm, o
         </div>
       </div>
     </div>
+  );
+}
+
+/* Copy text to the clipboard; falls back to a temporary textarea when the
+   Clipboard API is unavailable (plain-http origins). */
+async function copyText(text) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  document.execCommand('copy');
+  ta.remove();
+}
+
+/* Invite-link card (captain only) — the ONLY way to add members. Fetches the
+   current token via GET /teams/:id/invite, copies the shareable URL, and
+   rotates it (confirmed first) via POST …/invite/rotate — old links die
+   instantly, e.g. after removing a member. */
+function InviteLinkCard({ teamId }) {
+  const { t } = useLang();
+  const tt = t.teams;
+  const [state, setState] = useState('loading'); // loading | ready | error
+  const [invite, setInvite] = useState(null);
+  const [copied, setCopied] = useState(false);
+  const [rotateOpen, setRotateOpen] = useState(false);
+
+  const load = useCallback(() => {
+    let cancelled = false;
+    getTeamInvite(teamId)
+      .then((inv) => { if (!cancelled) { setInvite(inv); setState('ready'); } })
+      .catch(() => { if (!cancelled) setState('error'); });
+    return () => { cancelled = true; };
+  }, [teamId]);
+
+  useEffect(() => load(), [load]);
+
+  useEffect(() => {
+    if (!copied) return;
+    const id = setTimeout(() => setCopied(false), 2000);
+    return () => clearTimeout(id);
+  }, [copied]);
+
+  const url = invite ? teamJoinUrl(invite.inviteToken) : '';
+
+  return (
+    <section className="mt-6 rounded-3xl border border-accent/35 bg-[var(--accent-soft)] p-6">
+      <h2 className="font-display text-[17px] font-700 text-ink-900">{tt.inviteTitle}</h2>
+      <p className="mt-1 text-[13.5px] leading-relaxed text-ink-700">{tt.inviteSub}</p>
+
+      {state === 'loading' && (
+        <div className="mt-4 flex items-center gap-2 text-[13px] text-ink-500">
+          <span className="h-4 w-4 animate-spin rounded-full border-2 border-ink-200 border-t-accent" />
+          {t.profilePage.loading}
+        </div>
+      )}
+      {state === 'error' && (
+        <div className="mt-4 text-[13px] text-red-600">
+          {tt.inviteLoadFailed}{' '}
+          <button onClick={() => { setState('loading'); load(); }} className="font-600 text-accent hover:underline">
+            {tt.retry}
+          </button>
+        </div>
+      )}
+
+      {state === 'ready' && invite && (
+        <>
+          <div className="mt-4 flex gap-2.5">
+            <div className="flex min-w-0 flex-1 items-center overflow-hidden rounded-xl border border-ink-100 bg-white px-3.5 py-2.5">
+              <span className="truncate font-mono text-[12.5px] text-ink-700">{url}</span>
+            </div>
+            <button
+              onClick={async () => { await copyText(url); setCopied(true); }}
+              className={
+                'flex shrink-0 items-center gap-1.5 rounded-xl px-4 py-2.5 text-[13.5px] font-600 text-white transition-colors ' +
+                (copied ? 'bg-green-600' : 'bg-accent hover:brightness-110')
+              }>
+              {copied ? (
+                <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M3 8.5l3 3 7-7" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              ) : (
+                <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.7">
+                  <rect x="5" y="5" width="8" height="9" rx="1.5" />
+                  <path d="M3 11V3.5A1.5 1.5 0 0 1 4.5 2H10" />
+                </svg>
+              )}
+              {copied ? tt.copied : tt.copyLink}
+            </button>
+          </div>
+
+          <button
+            onClick={() => setRotateOpen(true)}
+            className="mt-4 flex items-center gap-1.5 text-[13.5px] font-600 text-ink-700 transition-colors hover:text-accent">
+            <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.7">
+              <path d="M13.5 8A5.5 5.5 0 1 1 11.7 4M13.5 2v3.5H10" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            {tt.rotateLink}
+          </button>
+          <p className="mt-1.5 text-[12px] leading-relaxed text-ink-500">{tt.rotateHelper}</p>
+        </>
+      )}
+
+      {rotateOpen && (
+        <ConfirmDialog
+          title={tt.confirmRotateTitle}
+          body={tt.confirmRotateBody}
+          confirmLabel={tt.rotate}
+          danger
+          onConfirm={async () => {
+            const next = await rotateTeamInvite(teamId);
+            setInvite(next);
+            setRotateOpen(false);
+          }}
+          onClose={() => setRotateOpen(false)}
+        />
+      )}
+    </section>
   );
 }
 
@@ -241,7 +367,8 @@ export function TeamPage({ teamId, onExit }) {
               </div>
             </div>
 
-            {/* invite-link card (DESIGN_PROMPTS.md §4) slots in here */}
+            {/* invite link — captain only; joining is by link only */}
+            {isCaptain && <InviteLinkCard teamId={teamId} />}
 
             {/* roster */}
             <div className="mt-6 overflow-hidden rounded-3xl border border-ink-100 bg-white">

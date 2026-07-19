@@ -199,6 +199,19 @@ export function getTeam(id) {
   return get(`/teams/${seg(id)}`);
 }
 
+/* GET /teams/:id/invite — the team's current invite link (captain only):
+   { inviteToken, joinPath }. Joining is by link only — there is no
+   "add member" endpoint; build the shareable URL with teamJoinUrl (nav.js). */
+export function getTeamInvite(id) {
+  return get(`/teams/${seg(id)}/invite`);
+}
+
+/* POST /teams/:id/invite/rotate — mint a new invite token; every old link
+   dies instantly (captain only). Returns the same shape as GET /invite. */
+export function rotateTeamInvite(id) {
+  return post(`/teams/${seg(id)}/invite/rotate`, {});
+}
+
 /* POST /teams/:id/leave — leave a team. The captain can't leave
    (409 captain_cannot_leave) — transfer captaincy or delete the team instead.
    Someone who left voluntarily may rejoin via a valid invite link. */

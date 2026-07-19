@@ -394,6 +394,18 @@ export const translations = {
       confirmTransferBody: "You'll become a regular member.",
       confirmDeleteFn:   (name) => `Delete ${name}?`,
       confirmDeleteBody: "This can't be undone. Teams with tournament history can't be deleted.",
+
+      /* Invite link card (GET /teams/:id/invite, POST …/invite/rotate) */
+      inviteTitle:        "Invite players",
+      inviteSub:          "Anyone with this link can join the team. Share it in your team chat.",
+      copyLink:           "Copy link",
+      copied:             "Copied",
+      rotateLink:         "Rotate link",
+      rotateHelper:       "Generates a new link and kills the old one instantly. Do this after removing a member.",
+      inviteLoadFailed:   "Couldn't load the invite link.",
+      confirmRotateTitle: "Rotate invite link?",
+      confirmRotateBody:  "Everyone with the old link will lose access.",
+      rotate:             "Rotate",
     },
 
     admin: {
@@ -1109,6 +1121,18 @@ export const translations = {
       confirmTransferBody: "Вы станете обычным участником.",
       confirmDeleteFn:   (name) => `Удалить команду «${name}»?`,
       confirmDeleteBody: "Это действие необратимо. Команды с турнирной историей удалить нельзя.",
+
+      /* Карточка ссылки-приглашения (GET /teams/:id/invite, POST …/invite/rotate) */
+      inviteTitle:        "Пригласите игроков",
+      inviteSub:          "Любой, у кого есть эта ссылка, сможет вступить в команду. Поделитесь ею в чате команды.",
+      copyLink:           "Скопировать",
+      copied:             "Скопировано",
+      rotateLink:         "Обновить ссылку",
+      rotateHelper:       "Создаёт новую ссылку и мгновенно отключает старую. Делайте это после удаления участника.",
+      inviteLoadFailed:   "Не удалось загрузить ссылку-приглашение.",
+      confirmRotateTitle: "Обновить ссылку-приглашение?",
+      confirmRotateBody:  "Все, у кого есть старая ссылка, потеряют доступ.",
+      rotate:             "Обновить",
     },
 
     admin: {
