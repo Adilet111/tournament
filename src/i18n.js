@@ -354,6 +354,22 @@ export const translations = {
       emptyHint:   "Create a team or ask a captain for an invite link.",
       loadFailed:  "Couldn't load your teams.",
       retry:       "Retry",
+
+      /* Create Team modal (POST /teams) */
+      createTitle:      "Create team",
+      createSubtitle:   "Set up a new team on Rally.",
+      sportLabel:       "Sport",
+      sportHelper:      "One team belongs to one sport",
+      sportsLoadFailed: "Couldn't load the sports list.",
+      nameLabel:        "Team name",
+      namePlaceholder:  "Astana Wolves",
+      logoLabel:        "Logo URL",
+      logoOptional:     "optional",
+      logoPlaceholder:  "https://example.com/logo.png",
+      cancel:           "Cancel",
+      creating:         "Creating…",
+      nameTaken:        "A team with this name already exists in this sport.",
+      captainNote:      "You'll become the team captain and get an invite link to share.",
     },
 
     admin: {
@@ -677,6 +693,8 @@ export const translations = {
       rating_too_high:     "Your rating is above this tournament's maximum.",
       already_registered:  "You're already registered for this tournament.",
       tournament_full:     "This tournament is full.",
+      /* POST /teams */
+      team_name_taken:     "A team with this name already exists in this sport.",
     },
   },
 
@@ -1023,6 +1041,22 @@ export const translations = {
       emptyHint:   "Создайте команду или попросите у капитана ссылку-приглашение.",
       loadFailed:  "Не удалось загрузить ваши команды.",
       retry:       "Повторить",
+
+      /* Модалка создания команды (POST /teams) */
+      createTitle:      "Создать команду",
+      createSubtitle:   "Создайте новую команду в Rally.",
+      sportLabel:       "Вид спорта",
+      sportHelper:      "Одна команда — один вид спорта",
+      sportsLoadFailed: "Не удалось загрузить список видов спорта.",
+      nameLabel:        "Название команды",
+      namePlaceholder:  "Astana Wolves",
+      logoLabel:        "Ссылка на логотип",
+      logoOptional:     "необязательно",
+      logoPlaceholder:  "https://example.com/logo.png",
+      cancel:           "Отмена",
+      creating:         "Создаём…",
+      nameTaken:        "Команда с таким названием уже есть в этом виде спорта.",
+      captainNote:      "Вы станете капитаном команды и получите ссылку-приглашение.",
     },
 
     admin: {
@@ -1345,6 +1379,8 @@ export const translations = {
       rating_too_high:     "Ваш рейтинг выше максимального для этого турнира.",
       already_registered:  "Вы уже зарегистрированы на этот турнир.",
       tournament_full:     "На турнире не осталось мест.",
+      /* POST /teams */
+      team_name_taken:     "Команда с таким названием уже есть в этом виде спорта.",
     },
   },
 };

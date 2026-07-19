@@ -194,8 +194,8 @@ export function ProfilePage({ onExit }) {
               )}
             </div>
 
-            {/* teams (GET /teams/mine) — create/open handlers arrive with the
-                Create Team modal and the team detail page. */}
+            {/* teams (GET /teams/mine + Create Team modal) — the onOpenTeam
+                handler arrives with the team detail page. */}
             <MyTeamsSection />
 
             {/* upcoming tournaments (GET /me/tournaments → upcoming) */}

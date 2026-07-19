@@ -176,6 +176,15 @@ export function deleteRegistration(id, userId) {
 /* ------------------------------------------------------------------ teams ---
    Team endpoints (see NEW.md). Joining a team is by invite link only. */
 
+/* POST /teams — create a team; the signed-in user becomes its captain.
+   Body: { sportId, name, logoUrl? }. The 201 response is the only plain
+   response that includes `inviteToken` — captains re-fetch it later via
+   GET /teams/:id/invite. Errors: 404 not_found (bad sportId),
+   409 team_name_taken (name already used within this sport). */
+export function createTeam(payload) {
+  return post('/teams', payload);
+}
+
 /* GET /teams/mine — teams the signed-in user is an active member of. Each item
    carries `myRole` ('captain' | 'member'), `sportName`/`sportSlug` and
    `memberCount` on top of the base team fields. */
