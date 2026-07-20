@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="design_doc_mode" content="canvas">
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Invite Landing — Rally</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@500;600;700;800&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+:root{--ink-900:#0f172a;--ink-700:#334155;--ink-500:#64748b;--ink-300:#cbd5e1;--ink-100:#e2e8f0;--ink-50:#f1f5f9;--accent:#1d4ed8;--accent-soft:#eff4ff}
+*{box-sizing:border-box}
+body{margin:0;font-family:'Hanken Grotesk',system-ui,sans-serif;color:var(--ink-900)}
+.disp{font-family:'Schibsted Grotesk',system-ui,sans-serif}
+.label-tag{position:absolute;top:-30px;left:0;font-size:13px;font-weight:600;color:var(--ink-500);font-family:'Schibsted Grotesk',sans-serif}
+.frame{width:420px;min-height:420px;background:#f1f5f9;border-radius:20px;display:flex;align-items:center;justify-content:center;padding:30px}
+.card{width:100%;background:#fff;border:1px solid var(--ink-100);border-radius:20px;padding:34px 30px;text-align:center;display:flex;flex-direction:column;align-items:center}
+.icon{width:56px;height:56px;border-radius:16px;display:flex;align-items:center;justify-content:center;margin-bottom:18px}
+.icon-accent{background:var(--accent-soft)}
+.icon-neutral{background:var(--ink-50)}
+.icon-red{background:#fef2f2}
+.h{font-size:19px;font-weight:700;margin:0 0 8px;line-height:1.3}
+.sub{font-size:13.5px;color:var(--ink-500);margin:0 0 24px;line-height:1.5;max-width:320px}
+.btn{border-radius:999px;padding:11px 22px;font-size:14px;font-weight:600;font-family:inherit;cursor:pointer;width:100%}
+.btn-primary{background:var(--accent);color:#fff;border:none}
+.btn-secondary{background:#fff;color:var(--ink-700);border:1px solid var(--ink-100)}
+.google-btn{display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;color:var(--ink-900);border:1px solid var(--ink-100);border-radius:999px;padding:11px 22px;font-size:14px;font-weight:600;font-family:inherit;cursor:pointer;width:100%}
+.avatar{width:64px;height:64px;border-radius:16px;background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;font-family:'Schibsted Grotesk',sans-serif;margin-bottom:18px}
+.chip{font-size:13px;font-weight:600;color:var(--ink-700);background:var(--ink-50);padding:5px 12px;border-radius:999px;margin-bottom:22px}
+.banner{width:420px;background:var(--accent-soft);border:1px solid color-mix(in srgb, var(--accent) 30%, transparent);border-radius:14px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:14px;font-size:13.5px;color:var(--ink-900)}
+.banner a{color:var(--accent);font-weight:600;text-decoration:none;white-space:nowrap}
+.banner a:hover{text-decoration:underline}
+</style>
+</head>
+<body>
+
+<div style="position:absolute;left:60px;top:70px" class="frame">
+<div class="label-tag">1 — Signed out</div>
+<div class="card">
+<div class="icon icon-accent"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" stroke-width="1.6"><path d="M17 8l4 4-4 4M21 12H9" stroke-linecap="round" stroke-linejoin="round"/><path d="M13 4H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8" stroke-linecap="round"/></svg></div>
+<h2 class="h disp">You've been invited to join a team on Rally</h2>
+<p class="sub">Sign in to accept the invitation</p>
+<button class="google-btn"><svg width="17" height="17" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.6 9.2c0-.6-.1-1.2-.2-1.8H9v3.4h4.8c-.2 1.1-.8 2-1.8 2.7v2.2h2.9c1.7-1.6 2.7-3.9 2.7-6.5z"/><path fill="#34A853" d="M9 18c2.4 0 4.5-.8 6-2.2l-2.9-2.2c-.8.5-1.9.9-3.1.9-2.4 0-4.4-1.6-5.1-3.7H.9v2.3C2.5 16 5.5 18 9 18z"/><path fill="#FBBC05" d="M3.9 10.8c-.2-.5-.3-1.1-.3-1.8s.1-1.2.3-1.8V4.9H.9C.3 6.1 0 7.5 0 9s.3 2.9.9 4.1z"/><path fill="#EA4335" d="M9 3.6c1.3 0 2.5.5 3.4 1.3l2.6-2.6C13.5.9 11.4 0 9 0 5.5 0 2.5 2 .9 4.9l3 2.3C4.6 5.1 6.6 3.6 9 3.6z"/></svg>Continue with Google</button>
+</div>
+</div>
+
+<div style="position:absolute;left:540px;top:70px" class="frame">
+<div class="label-tag">2 — Success</div>
+<div class="card">
+<div class="avatar disp">AW</div>
+<h2 class="h disp">Welcome to Astana Wolves 🎉</h2>
+<div class="chip">Football · 7 members</div>
+<button class="btn btn-primary">Open team page</button>
+</div>
+</div>
+
+<div style="position:absolute;left:1020px;top:70px" class="frame">
+<div class="label-tag">3 — Link invalid</div>
+<div class="card">
+<div class="icon icon-neutral"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M9 15s1.2-1.5 3-1.5 3 1.5 3 1.5M9 9.5h.01M15 9.5h.01" stroke-linecap="round"/></svg></div>
+<h2 class="h disp">This invite link is no longer valid</h2>
+<p class="sub">The captain may have rotated the link. Ask them for a fresh one.</p>
+<button class="btn btn-secondary">Go to Rally</button>
+</div>
+</div>
+
+<div style="position:absolute;left:60px;top:560px" class="frame">
+<div class="label-tag">4 — Blocked</div>
+<div class="card">
+<div class="icon icon-red"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M8 8l8 8M16 8l-8 8" stroke-linecap="round"/></svg></div>
+<h2 class="h disp">You can't rejoin this team</h2>
+<p class="sub">You were removed from this team by the captain.</p>
+<button class="btn btn-secondary">Browse tournaments</button>
+</div>
+</div>
+
+<div style="position:absolute;left:540px;top:560px">
+<div class="label-tag">5 — Already a member (banner)</div>
+<div class="banner">
+<span>You're already a member of this team</span>
+<a href="#">Open team page →</a>
+</div>
+</div>
+
+<template id="__bundler_thumbnail"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#1d4ed8"/><text x="50" y="58" font-size="26" fill="#fff" text-anchor="middle" font-family="sans-serif">INV</text></svg></template>
+</body>
+</html>

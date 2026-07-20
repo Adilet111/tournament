@@ -12,6 +12,7 @@ import { ProfileOnboarding } from './components/onboarding';
 import { AdminApp } from './admin/AdminApp';
 import { ProfilePage } from './components/profilePage';
 import { TeamPage } from './components/teamPage';
+import { TeamRegisterModal } from './components/teamRegister';
 import { PlayersPage, OrganizePage, SponsorsPage, RecruitersPage } from './components/audiencePages';
 import { getProfile, submitProfileAnswers, registerForTournament } from './lib/api';
 import { useCities, cityLabel } from './lib/cities';
@@ -228,7 +229,9 @@ function RallyApp() {
         <FinalCTA onAuth={setAuthMode} />
       </main>
       <Footer />
-      {reg && <RegisterModal key={reg.id} comp={reg} onClose={() => setReg(null)} />}
+      {reg && (reg.participantType === 'team'
+        ? <TeamRegisterModal key={reg.id} comp={reg} onClose={() => setReg(null)} />
+        : <RegisterModal key={reg.id} comp={reg} onClose={() => setReg(null)} />)}
       {authMode && <AuthPage mode={authMode} onClose={() => setAuthMode(null)} />}
       {profileOpen && <ProfileModal onClose={() => setProfileOpen(false)} />}
 

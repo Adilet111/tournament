@@ -406,6 +406,42 @@ export const translations = {
       confirmRotateTitle: "Rotate invite link?",
       confirmRotateBody:  "Everyone with the old link will lose access.",
       rotate:             "Rotate",
+
+      /* Join-by-invite landing page (POST /teams/join/:token) */
+      joinHeading:       "You've been invited to join a team on Rally",
+      joinSignInHint:    "Sign in to accept the invitation",
+      joinSignInCta:     "Continue with Google",
+      joining:           "Joining the team…",
+      joinWelcomeFn:     (name) => `Welcome to ${name} 🎉`,
+      openTeamPage:      "Open team page",
+      joinInvalidTitle:  "This invite link is no longer valid",
+      joinInvalidBody:   "The captain may have rotated the link. Ask them for a fresh one.",
+      goToRally:         "Go to Rally",
+      joinBlockedTitle:  "You can't rejoin this team",
+      joinBlockedBody:   "You were removed from this team by the captain.",
+      browseTournaments: "Browse tournaments",
+      joinAlreadyMember: "You're already a member of this team",
+      openMyTeams:       "My teams",
+    },
+
+    /* Team-tournament registration modal (POST /tournaments/:id/register-team,
+       .../withdraw-team). See DESIGN_PROMPTS.md §6. */
+    teamRegister: {
+      registerCta:       "Register your team",
+      notCaptainFn:      (sport) => `You're not a captain of any ${sport} team — create one or ask your captain`,
+      loading:           "Loading your teams…",
+      loadFailed:        "Couldn't load your teams.",
+      chooseTeamTitle:   "Choose team",
+      back:              "Back",
+      rosterTitle:       "Pick your roster",
+      selectedFn:        (n, total) => `${n} of ${total} selected`,
+      frozenNote:        "The roster is frozen for this tournament — later team changes won't affect it.",
+      registerRosterCta: "Register roster",
+      registering:       "Registering…",
+      successFn:         (team) => `${team} is registered`,
+      withdrawTeam:      "Withdraw team",
+      withdrawing:       "Withdrawing…",
+      doneCta:           "Done",
     },
 
     admin: {
@@ -667,10 +703,12 @@ export const translations = {
     },
 
     card: {
-      spotsLeftFn: (n) => `${n} spot${n === 1 ? "" : "s"} left`,
-      openEntry:   "Open entry",
-      entryLbl:    "entry",
-      registerBtn: "Register",
+      spotsLeftFn:     (n) => `${n} spot${n === 1 ? "" : "s"} left`,
+      openEntry:       "Open entry",
+      entryLbl:        "entry",
+      registerBtn:     "Register",
+      teamBadgeFn:     (n) => `Team · ${n}v${n}`,
+      teamSlotsLeftFn: (n) => `${n} team slot${n === 1 ? "" : "s"} left`,
     },
 
     data: {
@@ -735,6 +773,16 @@ export const translations = {
       not_captain:            "Only the team captain can do this.",
       captain_cannot_leave:   "The captain can't leave — transfer captaincy or delete the team first.",
       team_has_registrations: "This team has tournament history and can't be deleted.",
+      invalid_invite:         "This invite link is not valid.",
+      already_member:         "You're already a member of this team.",
+      removed_from_team:      "You can't rejoin this team — you were removed by the captain.",
+      /* team tournament registration (POST .../register-team, .../withdraw-team) —
+         member_* and player_already_in_tournament fall back to the backend's
+         own message, which names the offending players (see NEW.md §11). */
+      solo_tournament:   "This is a 1v1 tournament — register yourself instead of a team.",
+      sport_mismatch:    "This team's sport doesn't match the tournament's sport.",
+      wrong_roster_size: "Select exactly the required number of players.",
+      bracket_generated: "The bracket has already been generated — registration changes are closed.",
     },
   },
 
@@ -1133,6 +1181,42 @@ export const translations = {
       confirmRotateTitle: "Обновить ссылку-приглашение?",
       confirmRotateBody:  "Все, у кого есть старая ссылка, потеряют доступ.",
       rotate:             "Обновить",
+
+      /* Страница вступления по приглашению (POST /teams/join/:token) */
+      joinHeading:       "Вас пригласили в команду в Rally",
+      joinSignInHint:    "Войдите, чтобы принять приглашение",
+      joinSignInCta:     "Продолжить с Google",
+      joining:           "Вступаем в команду…",
+      joinWelcomeFn:     (name) => `Добро пожаловать в «${name}» 🎉`,
+      openTeamPage:      "Открыть страницу команды",
+      joinInvalidTitle:  "Ссылка-приглашение больше не действует",
+      joinInvalidBody:   "Возможно, капитан обновил ссылку. Попросите у него новую.",
+      goToRally:         "На главную Rally",
+      joinBlockedTitle:  "Вы не можете вернуться в эту команду",
+      joinBlockedBody:   "Капитан удалил вас из этой команды.",
+      browseTournaments: "Смотреть турниры",
+      joinAlreadyMember: "Вы уже состоите в этой команде",
+      openMyTeams:       "Мои команды",
+    },
+
+    /* Модалка регистрации команды на турнир (POST /tournaments/:id/register-team,
+       .../withdraw-team). См. DESIGN_PROMPTS.md §6. */
+    teamRegister: {
+      registerCta:       "Зарегистрировать команду",
+      notCaptainFn:      (sport) => `Вы не капитан ни одной команды по виду спорта «${sport}» — создайте команду или обратитесь к своему капитану`,
+      loading:           "Загружаем ваши команды…",
+      loadFailed:        "Не удалось загрузить ваши команды.",
+      chooseTeamTitle:   "Выберите команду",
+      back:              "Назад",
+      rosterTitle:       "Выберите состав",
+      selectedFn:        (n, total) => `Выбрано ${n} из ${total}`,
+      frozenNote:        "Состав фиксируется для этого турнира — дальнейшие изменения в команде на него не повлияют.",
+      registerRosterCta: "Зарегистрировать состав",
+      registering:       "Регистрируем…",
+      successFn:         (team) => `Команда «${team}» зарегистрирована`,
+      withdrawTeam:      "Снять команду",
+      withdrawing:       "Снимаем…",
+      doneCta:           "Готово",
     },
 
     admin: {
@@ -1394,10 +1478,12 @@ export const translations = {
     },
 
     card: {
-      spotsLeftFn: (n) => `${n} ${ruForm(n, "место", "места", "мест")} осталось`,
-      openEntry:   "Свободная запись",
-      entryLbl:    "взнос",
-      registerBtn: "Регистрация",
+      spotsLeftFn:     (n) => `${n} ${ruForm(n, "место", "места", "мест")} осталось`,
+      openEntry:       "Свободная запись",
+      entryLbl:        "взнос",
+      registerBtn:     "Регистрация",
+      teamBadgeFn:     (n) => `Команда · ${n}×${n}`,
+      teamSlotsLeftFn: (n) => `${n} ${ruForm(n, "командное место", "командных места", "командных мест")} осталось`,
     },
 
     data: {
@@ -1461,6 +1547,16 @@ export const translations = {
       not_captain:            "Это может сделать только капитан команды.",
       captain_cannot_leave:   "Капитан не может покинуть команду — сначала передайте капитанство или удалите команду.",
       team_has_registrations: "У команды есть турнирная история, её нельзя удалить.",
+      invalid_invite:         "Ссылка-приглашение недействительна.",
+      already_member:         "Вы уже состоите в этой команде.",
+      removed_from_team:      "Вы не можете вернуться в эту команду — капитан удалил вас.",
+      /* регистрация команды на турнир (POST .../register-team, .../withdraw-team) —
+         коды member_* и player_already_in_tournament используют сообщение
+         бэкенда напрямую, оно называет проблемных игроков (см. NEW.md §11). */
+      solo_tournament:   "Это турнир 1 на 1 — зарегистрируйтесь сами, а не от имени команды.",
+      sport_mismatch:    "Вид спорта команды не совпадает с видом спорта турнира.",
+      wrong_roster_size: "Выберите ровно нужное количество игроков.",
+      bracket_generated: "Сетка турнира уже сформирована — изменения регистрации закрыты.",
     },
   },
 };

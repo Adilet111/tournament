@@ -124,7 +124,7 @@ function FieldLabel({ children, hint }) {
   );
 }
 
-export function CreateTeamModal({ onClose, onCreated }) {
+export function CreateTeamModal({ onClose, onCreated, initialSportSlug }) {
   const { t } = useLang();
   const tt = t.teams;
 
@@ -151,11 +151,13 @@ export function CreateTeamModal({ onClose, onCreated }) {
       if (cancelled) return;
       const arr = Array.isArray(list) ? list : [];
       setSports(arr);
-      setSportId((cur) => cur || arr[0]?.id || '');
+      const preselected = initialSportSlug
+        && arr.find((s) => (s.slug || String(s.name || '').toLowerCase()) === initialSportSlug)?.id;
+      setSportId((cur) => cur || preselected || arr[0]?.id || '');
       setSportsState('ready');
     })().catch(() => { if (!cancelled) setSportsState('error'); });
     return () => { cancelled = true; };
-  }, []);
+  }, [initialSportSlug]);
 
   useEffect(() => loadSports(), [loadSports]);
 

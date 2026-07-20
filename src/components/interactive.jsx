@@ -37,6 +37,10 @@ const normalizeT = (t, slugMap, cities) => ({
   // Free places left. null capacity => uncapped (freePlaces also null).
   spots: t.freePlaces ?? (t.capacity != null ? Math.max(0, t.capacity - (t.occupiedPlaces ?? 0)) : null),
   capacity: t.capacity ?? null,
+  // Team tournaments: capacity/spots above already count teams, not players
+  // (backend convention, see NEW.md). teamSize is null for solo tournaments.
+  participantType: t.participantType === 'team' ? 'team' : 'solo',
+  teamSize: t.teamSize ?? null,
   cats: computeCats(t.minRating ?? 0, t.maxRating ?? 3000),
   // Age gates — used to localize age_too_low / age_too_high register errors.
   minAge: t.minAge ?? null,
@@ -118,16 +122,20 @@ function useTournaments(city = '') {
 function CompetitionCard({ c, onRegister }) {
   const { t, lang } = useLang();
   const cities = useCities();
+  const isTeam = c.participantType === 'team';
   const uncapped = c.spots == null;
   const lowSpots = !uncapped && c.spots <= 15;
   return (
     <article className="group flex flex-col overflow-hidden rounded-2xl border border-ink-100 bg-white transition-all hover:-translate-y-1 hover:border-ink-200 hover:shadow-xl">
       <div className="ph relative h-36">
         <span className="ph-label absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">{t.data.sports[c.sport]?.toLowerCase()} photo</span>
-        <div className="absolute left-3 top-3"><span className="rounded-full bg-white/90 px-2.5 py-1 backdrop-blur"><SportTag sport={c.sport} /></span></div>
+        <div className="absolute left-3 top-3 flex flex-wrap items-center gap-1.5">
+          <span className="rounded-full bg-white/90 px-2.5 py-1 backdrop-blur"><SportTag sport={c.sport} /></span>
+          {isTeam && <Pill tone="accent" className="!bg-white/90 backdrop-blur">{t.card.teamBadgeFn(c.teamSize)}</Pill>}
+        </div>
         <div className="absolute right-3 top-3">
           <Pill tone={lowSpots ? "accent" : "default"} className="!bg-white/90 backdrop-blur">
-            {uncapped ? t.card.openEntry : t.card.spotsLeftFn(c.spots)}
+            {uncapped ? t.card.openEntry : isTeam ? t.card.teamSlotsLeftFn(c.spots) : t.card.spotsLeftFn(c.spots)}
           </Pill>
         </div>
       </div>

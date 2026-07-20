@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="design_doc_mode" content="canvas">
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Create Team Modal — Rally</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@500;600;700;800&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+:root{--ink-900:#0f172a;--ink-700:#334155;--ink-500:#64748b;--ink-300:#cbd5e1;--ink-100:#e2e8f0;--ink-50:#f1f5f9;--accent:#1d4ed8;--accent-soft:#eff4ff}
+*{box-sizing:border-box}
+body{margin:0;font-family:'Hanken Grotesk',system-ui,sans-serif;color:var(--ink-900);background:#e7ebf1}
+.disp{font-family:'Schibsted Grotesk',system-ui,sans-serif}
+.backdrop{width:640px;height:560px;background:rgba(15,23,42,.5);display:flex;align-items:center;justify-content:center;border-radius:20px}
+.modal{width:440px;background:#fff;border-radius:20px;border:1px solid var(--ink-100);box-shadow:0 20px 50px -12px rgba(15,23,42,.3);padding:26px}
+.mhead{font-size:19px;font-weight:700;margin:0 0 4px}
+.msub{font-size:13.5px;color:var(--ink-500);margin:0 0 22px}
+.field{margin-bottom:18px}
+.label{display:block;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-500);margin-bottom:7px}
+select,input{width:100%;border:1px solid var(--ink-100);border-radius:12px;padding:10px 12px;font-size:14.5px;font-family:inherit;color:var(--ink-900);background:#fff;outline:none}
+select:focus,input:focus{border-color:var(--accent)}
+.helper{font-size:12.5px;color:var(--ink-500);margin-top:6px}
+.error-text{font-size:12.5px;color:#dc2626;margin-top:6px;display:flex;gap:5px;align-items:flex-start}
+.err-border{border-color:#dc2626!important}
+.logo-row{display:flex;align-items:center;gap:12px}
+.logo-row input{flex:1}
+.preview{width:40px;height:40px;border-radius:10px;background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0;font-family:'Schibsted Grotesk',sans-serif}
+.footer{display:flex;justify-content:flex-end;gap:10px;margin-top:6px}
+.btn{border:none;border-radius:999px;padding:10px 20px;font-size:14px;font-weight:600;font-family:inherit;cursor:pointer}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-secondary{background:#fff;color:var(--ink-700);border:1px solid var(--ink-100)}
+.foot-note{font-size:12px;color:var(--ink-500);margin-top:14px;line-height:1.5}
+.label-tag{position:absolute;top:-30px;left:0;font-size:13px;font-weight:600;color:var(--ink-500);font-family:'Schibsted Grotesk',sans-serif}
+select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none' stroke='%2364748b' stroke-width='1.6'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center}
+</style>
+</head>
+<body>
+
+<div style="position:absolute;left:60px;top:70px" class="backdrop">
+<div class="label-tag">Default</div>
+<div class="modal">
+<div class="mhead disp">Create team</div>
+<p class="msub">Set up a new team on Rally.</p>
+<div class="field">
+<label class="label">Sport</label>
+<select><option>Football</option><option>Basketball</option><option>Tennis</option><option>Running</option><option>Cycling</option></select>
+<div class="helper">One team belongs to one sport</div>
+</div>
+<div class="field">
+<label class="label">Team name</label>
+<input placeholder="Astana Wolves" />
+</div>
+<div class="field" style="margin-bottom:26px">
+<label class="label">Logo URL <span style="text-transform:none;font-weight:400">(optional)</span></label>
+<div class="logo-row">
+<input placeholder="https://example.com/logo.png" />
+<div class="preview">AW</div>
+</div>
+</div>
+<div class="footer">
+<button class="btn btn-secondary">Cancel</button>
+<button class="btn btn-primary">Create team</button>
+</div>
+<p class="foot-note">You'll become the team captain and get an invite link to share.</p>
+</div>
+</div>
+
+<div style="position:absolute;left:760px;top:70px" class="backdrop">
+<div class="label-tag">Error state</div>
+<div class="modal">
+<div class="mhead disp">Create team</div>
+<p class="msub">Set up a new team on Rally.</p>
+<div class="field">
+<label class="label">Sport</label>
+<select><option>Football</option><option>Basketball</option><option>Tennis</option></select>
+<div class="helper">One team belongs to one sport</div>
+</div>
+<div class="field">
+<label class="label">Team name</label>
+<input class="err-border" value="Astana Wolves" />
+<div class="error-text"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#dc2626" stroke-width="1.6" style="margin-top:1px;flex-shrink:0"><circle cx="8" cy="8" r="6.3"/><path d="M8 5.5v3.2M8 10.8v.1" stroke-linecap="round"/></svg><span>A team with this name already exists in this sport.</span></div>
+</div>
+<div class="field" style="margin-bottom:26px">
+<label class="label">Logo URL <span style="text-transform:none;font-weight:400">(optional)</span></label>
+<div class="logo-row">
+<input placeholder="https://example.com/logo.png" />
+<div class="preview">AW</div>
+</div>
+</div>
+<div class="footer">
+<button class="btn btn-secondary">Cancel</button>
+<button class="btn btn-primary">Create team</button>
+</div>
+<p class="foot-note">You'll become the team captain and get an invite link to share.</p>
+</div>
+</div>
+
+<template id="__bundler_thumbnail"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#1d4ed8"/><text x="50" y="58" font-size="30" fill="#fff" text-anchor="middle" font-family="sans-serif">CT</text></svg></template>
+</body>
+</html>

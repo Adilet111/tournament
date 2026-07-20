@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="design_doc_mode" content="canvas">
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Team Tournament — Rally</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@500;600;700;800&family=Hanken+Grotesk:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+:root{--ink-900:#0f172a;--ink-700:#334155;--ink-500:#64748b;--ink-300:#cbd5e1;--ink-100:#e2e8f0;--ink-50:#f1f5f9;--accent:#1d4ed8;--accent-soft:#eff4ff}
+*{box-sizing:border-box}
+body{margin:0;font-family:'Hanken Grotesk',system-ui,sans-serif;color:var(--ink-900);background:#f8fafc}
+.disp{font-family:'Schibsted Grotesk',system-ui,sans-serif}
+.mono{font-family:'Geist Mono',ui-monospace,monospace}
+.label-tag{position:absolute;top:-30px;left:0;font-size:13px;font-weight:600;color:var(--ink-500);font-family:'Schibsted Grotesk',sans-serif}
+.card{width:340px;background:#fff;border:1px solid var(--ink-100);border-radius:20px;padding:20px}
+.title{font-size:17px;font-weight:700;margin-bottom:10px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+.chip{font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;background:var(--ink-50);color:var(--ink-700)}
+.chip-team{background:var(--accent-soft);color:var(--accent);border:1px solid color-mix(in srgb, var(--accent) 30%, transparent)}
+.chip-paid{background:#fff7ed;color:#c2410c}
+.meta{font-size:13.5px;color:var(--ink-700);display:flex;align-items:center;gap:7px;margin-bottom:7px}
+.meta svg{flex-shrink:0}
+.prize{font-size:15px;font-weight:700;color:var(--ink-900);margin:10px 0 12px}
+.spots-row{display:flex;justify-content:space-between;font-size:12.5px;color:var(--ink-500);margin-bottom:6px}
+.bar{height:6px;background:var(--ink-50);border-radius:999px;overflow:hidden}
+.bar-fill{height:100%;background:var(--accent);border-radius:999px}
+
+.reg{width:400px;background:#fff;border:1px solid var(--ink-100);border-radius:20px;padding:24px}
+.btn{border-radius:999px;padding:12px 20px;font-size:14.5px;font-weight:600;font-family:inherit;cursor:pointer;width:100%;border:none}
+.btn-primary{background:var(--accent);color:#fff}
+.btn[disabled]{background:var(--ink-100);color:var(--ink-500);cursor:not-allowed}
+.helper{font-size:12.5px;color:var(--ink-500);margin-top:10px;text-align:center;line-height:1.5}
+.link-btn{background:none;border:none;color:var(--accent);font-size:13.5px;font-weight:600;font-family:inherit;cursor:pointer;padding:0;margin-top:10px;display:block;width:100%;text-align:center}
+.success{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:16px;padding:16px;text-align:center}
+.success-title{font-size:14.5px;font-weight:700;color:#166534;display:flex;align-items:center;justify-content:center;gap:7px}
+.withdraw{background:none;border:none;color:var(--ink-500);font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;padding:0;margin-top:12px;display:block;width:100%;text-align:center}
+.withdraw:hover{color:#dc2626}
+</style>
+</head>
+<body>
+
+<div style="position:absolute;left:60px;top:70px" class="card">
+<div class="label-tag">1 — Tournament card</div>
+<div class="title disp">City Cup 5v5</div>
+<div class="chips">
+<span class="chip">Football</span>
+<span class="chip chip-team">Team · 5v5</span>
+<span class="chip chip-paid">Paid</span>
+</div>
+<div class="meta"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#64748b" stroke-width="1.6"><path d="M8 14s5-4.4 5-8a5 5 0 1 0-10 0c0 3.6 5 8 5 8z"/><circle cx="8" cy="6" r="1.8"/></svg>Central Arena, Almaty</div>
+<div class="meta"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#64748b" stroke-width="1.6"><rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M2 6.5h12M5 1.5v3M11 1.5v3" stroke-linecap="round"/></svg>Aug 1, 15:00</div>
+<div class="prize disp">500 000 ₸ prize pool</div>
+<div class="spots-row"><span>3 of 16 team slots left</span></div>
+<div class="bar"><div class="bar-fill" style="width:81%"></div></div>
+</div>
+
+<div style="position:absolute;left:460px;top:70px" class="reg">
+<div class="label-tag">2 — Registration: captain, ready</div>
+<button class="btn btn-primary">Register your team</button>
+<div class="helper">Only team captains can register a roster</div>
+</div>
+
+<div style="position:absolute;left:920px;top:70px" class="reg">
+<div class="label-tag">2 — Registration: not a captain</div>
+<button class="btn" disabled>Register your team</button>
+<div class="helper">You're not a captain of any Football team — create one or ask your captain</div>
+<button class="link-btn">Create team</button>
+</div>
+
+<div style="position:absolute;left:460px;top:320px" class="reg">
+<div class="label-tag">3 — Registration: confirmed</div>
+<div class="success">
+<div class="success-title disp"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#16a34a" stroke-width="2"><path d="M3 8.5l3 3 7-7" stroke-linecap="round" stroke-linejoin="round"/></svg>Astana Wolves is registered</div>
+</div>
+<button class="withdraw">Withdraw team</button>
+</div>
+
+<template id="__bundler_thumbnail"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#1d4ed8"/><text x="50" y="58" font-size="24" fill="#fff" text-anchor="middle" font-family="sans-serif">5v5</text></svg></template>
+</body>
+</html>

@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="design_doc_mode" content="canvas">
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Team Detail — Rally</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@500;600;700;800&family=Hanken+Grotesk:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+:root{--ink-900:#0f172a;--ink-700:#334155;--ink-500:#64748b;--ink-300:#cbd5e1;--ink-100:#e2e8f0;--ink-50:#f1f5f9;--accent:#1d4ed8;--accent-soft:#eff4ff}
+*{box-sizing:border-box}
+body{margin:0;font-family:'Hanken Grotesk',system-ui,sans-serif;color:var(--ink-900);background:#f8fafc}
+.disp{font-family:'Schibsted Grotesk',system-ui,sans-serif}
+.mono{font-family:'Geist Mono',ui-monospace,monospace}
+.page{width:900px}
+.card{background:#fff;border:1px solid var(--ink-100);border-radius:20px}
+.label-tag{position:absolute;top:-30px;left:0;font-size:13px;font-weight:600;color:var(--ink-500);font-family:'Schibsted Grotesk',sans-serif}
+
+.header{padding:26px 28px;display:flex;align-items:flex-start;justify-content:space-between;gap:20px;margin-bottom:44px}
+.hleft{display:flex;gap:16px}
+.logo{width:64px;height:64px;border-radius:16px;object-fit:cover;background:var(--ink-50);flex-shrink:0}
+.hname-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.hname{font-size:24px;font-weight:700}
+.chip{font-size:12.5px;font-weight:600;padding:4px 10px;border-radius:999px;background:var(--ink-50);color:var(--ink-700)}
+.role-captain{font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;background:var(--accent);color:#fff}
+.role-member{font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;background:#fff;color:var(--ink-700);border:1px solid var(--ink-300)}
+.hmeta{font-size:13px;color:var(--ink-500);margin-top:6px}
+.hright{display:flex;flex-direction:column;align-items:flex-end;gap:8px;flex-shrink:0}
+.btn{border-radius:999px;padding:9px 16px;font-size:13.5px;font-weight:600;font-family:inherit;cursor:pointer;border:1px solid var(--ink-100);background:#fff;color:var(--ink-700)}
+.btn-ghost-red{background:transparent;border:none;color:#dc2626;font-size:13.5px;font-weight:600;font-family:inherit;cursor:pointer;padding:9px 4px}
+.btn[disabled],.btn-ghost-red[disabled]{opacity:.45;cursor:not-allowed}
+.tooltip-wrap{position:relative;display:inline-block}
+.tooltip{position:absolute;right:0;top:calc(100% + 8px);background:var(--ink-900);color:#fff;font-size:12px;font-weight:500;padding:8px 11px;border-radius:10px;width:210px;line-height:1.4;box-shadow:0 8px 20px rgba(15,23,42,.25)}
+.tooltip:after{content:'';position:absolute;right:18px;bottom:100%;border:5px solid transparent;border-bottom-color:var(--ink-900)}
+.helper-inline{font-size:12px;color:var(--ink-500);max-width:190px;text-align:right;line-height:1.4}
+
+.slot{padding:20px 28px;margin-bottom:16px;border-style:dashed;color:var(--ink-300);font-size:13px;text-align:center;font-weight:600}
+
+.roster-head{padding:20px 28px 4px;font-size:16px;font-weight:700}
+.row{display:grid;grid-template-columns:32px 1.6fr 100px 90px 110px 90px;align-items:center;gap:14px;padding:14px 28px;border-top:1px solid var(--ink-50)}
+.row.colhead{color:var(--ink-500);font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;padding-top:16px;padding-bottom:12px}
+.avatar{width:32px;height:32px;border-radius:999px;object-fit:cover;background:var(--ink-50)}
+.avatar-fallback{width:32px;height:32px;border-radius:999px;background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;font-family:'Schibsted Grotesk',sans-serif}
+.mname{font-size:14.5px;font-weight:600}
+.memail{font-size:12px;color:var(--ink-500);margin-top:1px}
+.rating{font-size:14px;color:var(--ink-700)}
+.rating.dash{color:var(--ink-300)}
+.joined{font-size:13px;color:var(--ink-500)}
+.remove{background:none;border:none;color:#dc2626;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;justify-self:end}
+</style>
+</head>
+<body>
+
+<div style="position:absolute;left:60px;top:70px" class="page">
+<div class="label-tag">Captain's view — header</div>
+<div class="card header">
+<div class="hleft">
+<img class="logo" src="https://images.unsplash.com/photo-1560272564-c83b66b1ad12?w=128&h=128&fit=crop" />
+<div>
+<div class="hname-row"><span class="hname disp">Astana Wolves</span><span class="chip">Football</span><span class="role-captain">Captain</span></div>
+<div class="hmeta">Created July 19, 2026</div>
+</div>
+</div>
+<div class="hright">
+<button class="btn">Transfer captaincy</button>
+<div class="tooltip-wrap">
+<button class="btn-ghost-red" disabled>Delete team</button>
+<div class="tooltip">Teams with tournament history can't be deleted</div>
+</div>
+</div>
+</div>
+
+<div class="card slot" style="border:1px dashed var(--ink-100)">Invite-link card — designed separately</div>
+
+<div class="card">
+<div class="roster-head disp">Roster · 7</div>
+<div class="row colhead"><span></span><span>Member</span><span>Role</span><span>Rating</span><span>Joined</span><span></span></div>
+
+<div class="row">
+<div class="avatar-fallback">AS</div>
+<div><div class="mname">Aigerim S.</div><div class="memail"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="72131b1517001b1f5c0132151f131b1e5c111d1f">[email&#160;protected]</a></div></div>
+<span class="role-captain" style="justify-self:start">Captain</span>
+<span class="rating mono">1480</span>
+<span class="joined">Jan 12, 2026</span>
+<span></span>
+</div>
+<div class="row">
+<img class="avatar" src="https://i.pravatar.cc/64?img=12" />
+<div><div class="mname">Daniyar T.</div><div class="memail"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="90f4f1fef9e9f1e2bee4d0f7fdf1f9fcbef3fffd">[email&#160;protected]</a></div></div>
+<span class="role-member" style="justify-self:start">Member</span>
+<span class="rating mono">1362</span>
+<span class="joined">Jan 15, 2026</span>
+<button class="remove">Remove</button>
+</div>
+<div class="row">
+<img class="avatar" src="https://i.pravatar.cc/64?img=33" />
+<div><div class="mname">Madina K.</div><div class="memail"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="caa7abaea3a4abe4a18aada7aba3a6e4a9a5a7">[email&#160;protected]</a></div></div>
+<span class="role-member" style="justify-self:start">Member</span>
+<span class="rating mono dash">—</span>
+<span class="joined">Feb 3, 2026</span>
+<button class="remove">Remove</button>
+</div>
+<div class="row">
+<div class="avatar-fallback">YB</div>
+<div><div class="mname">Yerlan B.</div><div class="memail"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="562f33243a3738783416313b373f3a7835393b">[email&#160;protected]</a></div></div>
+<span class="role-member" style="justify-self:start">Member</span>
+<span class="rating mono">1510</span>
+<span class="joined">Feb 3, 2026</span>
+<button class="remove">Remove</button>
+</div>
+<div class="row">
+<img class="avatar" src="https://i.pravatar.cc/64?img=47" />
+<div><div class="mname">Saltanat Y.</div><div class="memail"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="81f2e0edf5e0efe0f5aff8c1e6ece0e8edafe2eeec">[email&#160;protected]</a></div></div>
+<span class="role-member" style="justify-self:start">Member</span>
+<span class="rating mono">1298</span>
+<span class="joined">Mar 21, 2026</span>
+<button class="remove">Remove</button>
+</div>
+<div class="row">
+<div class="avatar-fallback">NK</div>
+<div><div class="mname">Nurlan K.</div><div class="memail"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="365843445a5758185d76515b575f5a1855595b">[email&#160;protected]</a></div></div>
+<span class="role-member" style="justify-self:start">Member</span>
+<span class="rating mono dash">—</span>
+<span class="joined">Apr 2, 2026</span>
+<button class="remove">Remove</button>
+</div>
+<div class="row">
+<img class="avatar" src="https://i.pravatar.cc/64?img=5" />
+<div><div class="mname">Bekzat A.</div><div class="memail"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="7012151b0a11045e1130171d11191c5e131f1d">[email&#160;protected]</a></div></div>
+<span class="role-member" style="justify-self:start">Member</span>
+<span class="rating mono">1421</span>
+<span class="joined">May 30, 2026</span>
+<button class="remove">Remove</button>
+</div>
+</div>
+</div>
+
+<div style="position:absolute;left:1020px;top:70px;width:900px" class="page">
+<div class="label-tag">Member's view — header variant</div>
+<div class="card header">
+<div class="hleft">
+<img class="logo" src="https://images.unsplash.com/photo-1560272564-c83b66b1ad12?w=128&h=128&fit=crop" />
+<div>
+<div class="hname-row"><span class="hname disp">Astana Wolves</span><span class="chip">Football</span><span class="role-member">Member</span></div>
+<div class="hmeta">Created July 19, 2026</div>
+</div>
+</div>
+<div class="hright">
+<button class="btn">Leave team</button>
+</div>
+</div>
+
+<div class="card header" style="margin-top:16px">
+<div class="hleft">
+<img class="logo" src="https://images.unsplash.com/photo-1560272564-c83b66b1ad12?w=128&h=128&fit=crop" />
+<div>
+<div class="hname-row"><span class="hname disp">Astana Wolves</span><span class="chip">Football</span><span class="role-captain">Captain</span></div>
+<div class="hmeta">Created July 19, 2026</div>
+</div>
+</div>
+<div class="hright">
+<button class="btn" disabled>Leave team</button>
+<div class="helper-inline">Captains must transfer captaincy before leaving.</div>
+</div>
+</div>
+</div>
+
+<template id="__bundler_thumbnail"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#1d4ed8"/><text x="50" y="58" font-size="30" fill="#fff" text-anchor="middle" font-family="sans-serif">TD</text></svg></template>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script></body>
+</html>

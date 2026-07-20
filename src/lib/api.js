@@ -103,6 +103,22 @@ export function registerForTournament(tournamentId) {
   return post(`/tournaments/${seg(tournamentId)}/register`, {});
 }
 
+/* POST /tournaments/:id/register-team — captain submits exactly `teamSize`
+   active members (see NEW.md §11). The roster is frozen as a snapshot; later
+   team changes don't affect this tournament. Errors name the offending
+   players in `.message` (member_no_sport_profile, member_rating_out_of_range,
+   member_age_out_of_range, player_already_in_tournament, …) — surface it via
+   apiErrorMessage's fallback rather than mapping every code. */
+export function registerTeamForTournament(tournamentId, teamId, memberIds) {
+  return post(`/tournaments/${seg(tournamentId)}/register-team`, { teamId, memberIds });
+}
+
+/* POST /tournaments/:id/withdraw-team — captain withdraws the team, deleting
+   the roster snapshot so those players may enter with another team. */
+export function withdrawTeamFromTournament(tournamentId, teamId) {
+  return post(`/tournaments/${seg(tournamentId)}/withdraw-team`, { teamId });
+}
+
 /* GET /me/tournaments — the signed-in user's tournaments, split into
    { upcoming, past } arrays. `past` doubles as the match history. */
 export function getMyTournaments() {
@@ -210,6 +226,14 @@ export function getTeamInvite(id) {
    dies instantly (captain only). Returns the same shape as GET /invite. */
 export function rotateTeamInvite(id) {
   return post(`/teams/${seg(id)}/invite/rotate`, {});
+}
+
+/* POST /teams/join/:token — join a team via an invite link (the only way in).
+   201 → { team, membership }. Errors: 404 invalid_invite (bad or rotated
+   link), 409 already_member, 403 removed_from_team (banned — can't rejoin;
+   someone who left voluntarily can). */
+export function joinTeamByToken(token) {
+  return post(`/teams/join/${seg(token)}`, {});
 }
 
 /* POST /teams/:id/leave — leave a team. The captain can't leave
