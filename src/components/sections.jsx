@@ -174,39 +174,22 @@ function HeroSplit() {
   return (
     <section id="top" className="relative overflow-hidden pt-[120px] pb-20">
       <div className="pointer-events-none absolute -right-32 -top-24 h-[480px] w-[480px] rounded-full bg-[var(--accent-soft)] blur-3xl opacity-70" />
-      <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-12 px-6 lg:grid-cols-[1.05fr_1fr]">
-        <div>
-          <HeroEyebrow>{h.eyebrow}</HeroEyebrow>
-          <h1 className="font-display mt-6 text-[clamp(40px,6vw,68px)] font-700 leading-[0.98] tracking-[-0.02em] text-ink-900" style={{ textWrap: "balance" }}>
-            {h.h1_1}<br />{h.h1_2}<br /><span className="text-accent">{h.h1_accent}</span>
-          </h1>
-          <p className="mt-6 max-w-md text-[18px] leading-relaxed text-ink-500">{h.body}</p>
-          <div className="mt-8 flex flex-wrap gap-3">
-            <Btn variant="primary" size="lg" onClick={() => scrollToId("browse")}>{h.findCta} <Arrow /></Btn>
-            <Btn variant="outline" size="lg" onClick={() => scrollToId("organize")}>{h.organizeCta}</Btn>
-          </div>
-          <div className="mt-8 flex items-center gap-6 text-[14px] text-ink-500">
-            <span><b className="font-display text-ink-900">1,240+</b> {h.stat_events}</span>
-            <span className="h-4 w-px bg-ink-100" />
-            <span><b className="font-display text-ink-900">52k</b> {h.stat_athletes}</span>
-            <span className="h-4 w-px bg-ink-100" />
-            <span><b className="font-display text-ink-900">8</b> {h.stat_sports}</span>
-          </div>
+      <div className="mx-auto max-w-[768px] px-6 text-center">
+        <div className="flex justify-center"><HeroEyebrow>{h.eyebrow}</HeroEyebrow></div>
+        <h1 className="font-display mt-6 text-[clamp(40px,6vw,68px)] font-700 leading-[0.98] tracking-[-0.02em] text-ink-900" style={{ textWrap: "balance" }}>
+          {h.h1_1}<br />{h.h1_2}<br /><span className="text-accent">{h.h1_accent}</span>
+        </h1>
+        <p className="mx-auto mt-6 max-w-md text-[18px] leading-relaxed text-ink-500">{h.body}</p>
+        <div className="mt-8 flex flex-wrap justify-center gap-3">
+          <Btn variant="primary" size="lg" onClick={() => scrollToId("browse")}>{h.findCta} <Arrow /></Btn>
+          <Btn variant="outline" size="lg" onClick={() => scrollToId("organize")}>{h.organizeCta}</Btn>
         </div>
-        <div className="relative">
-          <image-slot id="hero-split" shape="rounded" radius="22"
-            placeholder="drop hero image — athlete in motion"
-            class="block w-full"
-            style={{ width: "100%", aspectRatio: "4/5", borderRadius: "22px" }}></image-slot>
-          <div className="absolute -bottom-6 -left-6 w-[260px] rounded-2xl border border-ink-100 bg-white p-4 shadow-xl">
-            <SportTag sport="running" />
-            <div className="mt-2 font-display text-[17px] font-600 leading-snug text-ink-900">Thames Half Marathon</div>
-            <div className="mt-1 text-[13px] text-ink-500">{h.card_location}</div>
-            <div className="mt-3 flex items-center justify-between">
-              <Pill tone="accent">{h.card_spots}</Pill>
-              <span className="font-display text-[15px] font-600 text-ink-900">5 000 ₸</span>
-            </div>
-          </div>
+        <div className="mt-8 flex items-center justify-center gap-6 text-[14px] text-ink-500">
+          <span><b className="font-display text-ink-900">1,240+</b> {h.stat_events}</span>
+          <span className="h-4 w-px bg-ink-100" />
+          <span><b className="font-display text-ink-900">52k</b> {h.stat_athletes}</span>
+          <span className="h-4 w-px bg-ink-100" />
+          <span><b className="font-display text-ink-900">8</b> {h.stat_sports}</span>
         </div>
       </div>
     </section>

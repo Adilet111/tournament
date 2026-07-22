@@ -5,6 +5,8 @@
    or stores the session token. "Am I logged in?" is answered by GET /auth/me
    on startup, not by anything in localStorage. */
 
+import { getLang } from './lang';
+
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 // Auth is served under /api like the rest of the backend. Blank base => requests
 // hit /api/auth/* and go through the Vite dev proxy.
@@ -35,6 +37,7 @@ async function authRequest(path, options = {}) {
     ...options,
     credentials: 'include', // send / receive the auth cookie
     headers: {
+      'Accept-Language': getLang(),
       // Only claim JSON when we actually send a body — Fastify rejects an
       // empty body with a JSON content-type.
       ...(options.body !== undefined ? { 'Content-Type': 'application/json' } : {}),

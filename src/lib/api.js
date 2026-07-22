@@ -7,6 +7,8 @@
    request sends it via `credentials: 'include'`. No Authorization header,
    no token in localStorage — JavaScript never touches the token. */
 
+import { getLang } from './lang';
+
 const API_BASE = (import.meta.env.VITE_API_BASE || '') + '/api';
 
 /* Error shape thrown by every call: `.code` is the backend's stable error code
@@ -29,6 +31,7 @@ async function request(method, path, body) {
     method,
     credentials: 'include', // send the auth cookie
     headers: {
+      'Accept-Language': getLang(),
       ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
     },
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
