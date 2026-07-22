@@ -8,7 +8,7 @@ import {
   listAdminTournaments, getTournament, updateTournament, deleteTournament,
   listRegistrations, addRegistration, updateRegistration, deleteRegistration, getAdminUser,
   listRemovedRegistrations, markRemovedNotified, listTeamRegistrations,
-  getBracket, generateBracket, deleteBracket, reportMatchResult, getUserStats,
+  getBracket, generateBracket, deleteBracket, reportMatchResult, getUserStats, adjustUserRating,
 } from '../lib/api';
 import { roundLabel as roundLabelFor, winningSlot, buildFeedersByNext, nextPow2, placementInfo } from '../lib/bracketRounds';
 import { owned, REGISTRATIONS, SPONSORS, PROMOTIONS } from './adminData';
@@ -165,6 +165,7 @@ export function Competitions({ setView }) {
   const [filter, setFilter] = useState('all');
   const [tournaments, setTournaments] = useState([]);
   const [sportsMap, setSportsMap] = useState({});
+  const [sportSlugMap, setSportSlugMap] = useState({});
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
@@ -175,7 +176,9 @@ export function Competitions({ setView }) {
     Promise.all([listAdminTournaments(filter === 'all' ? undefined : filter), listSports()])
       .then(([ts, ss]) => {
         if (cancelled) return;
-        setSportsMap(Object.fromEntries((Array.isArray(ss) ? ss : []).map((s) => [s.id, s.name])));
+        const sportsList = Array.isArray(ss) ? ss : [];
+        setSportsMap(Object.fromEntries(sportsList.map((s) => [s.id, s.name])));
+        setSportSlugMap(Object.fromEntries(sportsList.map((s) => [s.id, s.slug || String(s.name || '').toLowerCase()])));
         setTournaments(Array.isArray(ts) ? ts : []);
         setFetchError(null);
       })
@@ -261,6 +264,7 @@ export function Competitions({ setView }) {
           tournament={managing}
           onOpenQueue={() => setView('notifications')}
           sportName={sportsMap[managing.sportId] || managing.sportId}
+          sportSlug={sportSlugMap[managing.sportId] || ''}
           onClose={() => setManaging(null)}
           onChanged={reload}
         />
@@ -390,7 +394,7 @@ function ParticipantPickCard({ name, seedLabel, selected, winnerLabel, onClick }
 
 /* Static participant card for the read-only completed-match view — same
    visual language, no interaction, final score shown inline. */
-function ParticipantResultCard({ name, seedLabel, isWinner, score, winnerLabel }) {
+function ParticipantResultCard({ name, seedLabel, isWinner, score, winnerLabel, onAdjust, adjustLabel }) {
   return (
     <div className={'flex w-full items-center gap-3 rounded-2xl border p-3.5 ' + (isWinner ? 'border-accent bg-[var(--accent-soft)]' : 'border-ink-100')}>
       <span className={'grid h-9 w-9 shrink-0 place-items-center rounded-[10px] font-mono text-[12px] font-700 ' + (isWinner ? 'bg-white text-accent' : 'bg-ink-50 text-ink-300')}>
@@ -408,6 +412,14 @@ function ParticipantResultCard({ name, seedLabel, isWinner, score, winnerLabel }
       <span className={'shrink-0 font-mono text-[18px] font-600 ' + (isWinner ? 'text-accent' : 'ml-auto text-ink-300')}>
         {score ?? '–'}
       </span>
+      {onAdjust && (
+        <button type="button" onClick={onAdjust} title={adjustLabel}
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-ink-100 text-ink-500 hover:border-ink-300 hover:bg-white hover:text-ink-900">
+          <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.6">
+            <path d="M12.5 4.5l3 3L6 17H3v-3z" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+      )}
     </div>
   );
 }
@@ -422,12 +434,70 @@ function VsDivider({ label }) {
   );
 }
 
+/* Manually nudge a participant's sport rating (POST /admin/users/:id/sports/
+   :sport/rating/adjust) — opened from a completed match's result view, for
+   correcting a disputed win/loss after the fact. `delta` is signed: positive
+   awards points, negative deducts them; quick-pick buttons are just a
+   convenience, the number field takes any integer. */
+function AdjustRatingModal({ userId, name, sportSlug, isWinner, onClose }) {
+  const { t } = useLang();
+  const bp = t.admin.bracket;
+  const [delta, setDelta] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  const [applied, setApplied] = useState(null); // last-applied delta, or null
+
+  const apply = async (amount) => {
+    const n = Number(amount);
+    if (!n || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await adjustUserRating(userId, sportSlug, n);
+      setApplied(n);
+      setDelta('');
+    } catch (e) {
+      setError(apiErrorMessage(e, t));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Modal title={bp.adjustRatingTitleFn(name)} sub={t.data.sports[sportSlug] ?? sportSlug} onClose={onClose} maxW="max-w-sm">
+      <p className="text-[13.5px] leading-relaxed text-ink-500">
+        {isWinner ? bp.adjustWinnerNote : bp.adjustLoserNote}
+      </p>
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Btn variant="outline" size="sm" disabled={busy} onClick={() => apply(10)}>+10</Btn>
+        <Btn variant="outline" size="sm" disabled={busy} onClick={() => apply(25)}>+25</Btn>
+        <Btn variant="outline" size="sm" disabled={busy} onClick={() => apply(-10)}>−10</Btn>
+        <Btn variant="outline" size="sm" disabled={busy} onClick={() => apply(-25)}>−25</Btn>
+      </div>
+
+      <div className="mt-4 flex items-center gap-2.5">
+        <input type="number" value={delta} onChange={(e) => setDelta(e.target.value)} placeholder={bp.adjustCustomPlaceholder}
+          className="w-24 rounded-xl border border-ink-200 px-3 py-2 text-center font-mono text-[14px] text-ink-900 outline-none focus:border-accent" />
+        <Btn variant="primary" size="sm" disabled={!delta || busy} onClick={() => apply(delta)}>
+          {busy ? bp.adjustApplying : bp.adjustApply}
+        </Btn>
+      </div>
+
+      {error && <p className="mt-3 text-[13px] text-red-600">{error}</p>}
+      {applied != null && (
+        <p className="mt-3 text-[13px] font-600 text-emerald-700">{bp.adjustAppliedFn(applied)}</p>
+      )}
+    </Modal>
+  );
+}
+
 /* Report or review a match's result (~440px modal), per DESIGN_PROMPTS §13.
    Interactive form for a pending match with both sides known (opened via
    MiniMatchCard's hover "Report result" button); read-only display for an
    already-completed match (opened by clicking the mini card itself) — results
    are immutable once reported (NEW.md §17), so there's nothing to edit. */
-function ReportResultModal({ match, roundLabel, entryById, onClose, onReported }) {
+function ReportResultModal({ match, roundLabel, entryById, sportSlug, onClose, onReported }) {
   const { t, lang } = useLang();
   const bp = t.admin.bracket;
   const isCompleted = match.status === 'completed';
@@ -437,6 +507,7 @@ function ReportResultModal({ match, roundLabel, entryById, onClose, onReported }
   const [score2, setScore2] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+  const [adjustFor, setAdjustFor] = useState(null); // { userId, name, isWinner } | null
 
   const p1 = match.participants.find((p) => p.slot === 1);
   const p2 = match.participants.find((p) => p.slot === 2);
@@ -446,6 +517,11 @@ function ReportResultModal({ match, roundLabel, entryById, onClose, onReported }
   const name2 = p2?.displayName ?? e2?.displayName ?? '—';
   const seedLabel1 = e1?.seed != null ? bp.seedFn(e1.seed) : '';
   const seedLabel2 = e2?.seed != null ? bp.seedFn(e2.seed) : '';
+  // Bracket entries are frozen from registrations at generation time and
+  // should carry the same userId; defensive fallback in case the field name
+  // differs from what's assumed here.
+  const userId1 = p1?.userId ?? e1?.userId ?? e1?.user?.id ?? null;
+  const userId2 = p2?.userId ?? e2?.userId ?? e2?.user?.id ?? null;
 
   const submit = async () => {
     if (!winnerSlot || busy) return;
@@ -477,9 +553,23 @@ function ReportResultModal({ match, roundLabel, entryById, onClose, onReported }
             {bp.completedFn(playedDate)}
           </span>
         )}
-        <ParticipantResultCard name={name1} seedLabel={seedLabel1} isWinner={winner === 1} score={p1?.score} winnerLabel={bp.winnerPill} />
+        <ParticipantResultCard name={name1} seedLabel={seedLabel1} isWinner={winner === 1} score={p1?.score} winnerLabel={bp.winnerPill}
+          onAdjust={userId1 && sportSlug ? () => setAdjustFor({ userId: userId1, name: name1, isWinner: winner === 1 }) : undefined}
+          adjustLabel={bp.adjustRating} />
         <VsDivider label={bp.vsWord} />
-        <ParticipantResultCard name={name2} seedLabel={seedLabel2} isWinner={winner === 2} score={p2?.score} winnerLabel={bp.winnerPill} />
+        <ParticipantResultCard name={name2} seedLabel={seedLabel2} isWinner={winner === 2} score={p2?.score} winnerLabel={bp.winnerPill}
+          onAdjust={userId2 && sportSlug ? () => setAdjustFor({ userId: userId2, name: name2, isWinner: winner === 2 }) : undefined}
+          adjustLabel={bp.adjustRating} />
+
+        {adjustFor && (
+          <AdjustRatingModal
+            userId={adjustFor.userId}
+            name={adjustFor.name}
+            isWinner={adjustFor.isWinner}
+            sportSlug={sportSlug}
+            onClose={() => setAdjustFor(null)}
+          />
+        )}
       </Modal>
     );
   }
@@ -522,7 +612,7 @@ function ReportResultModal({ match, roundLabel, entryById, onClose, onReported }
    flow and (once closed) previews the size/rounds/byes the current
    registration count would produce; once generated it shows the stats chips,
    a compact bracket preview, and delete (locked once any match is played). */
-function BracketPanel({ tournamentId, status, registered, isTeam, t }) {
+function BracketPanel({ tournamentId, status, registered, isTeam, sportSlug, t }) {
   const bp = t.admin.bracket;
   const bt = t.bracket;
   const [state, setState] = useState('loading'); // loading | ready | error
@@ -668,6 +758,7 @@ function BracketPanel({ tournamentId, status, registered, isTeam, t }) {
           match={reportMatch.match}
           roundLabel={reportMatch.roundLabel}
           entryById={entryById}
+          sportSlug={sportSlug}
           onClose={() => setReportMatch(null)}
           onReported={() => { setReportMatch(null); reload(); }}
         />
@@ -677,7 +768,7 @@ function BracketPanel({ tournamentId, status, registered, isTeam, t }) {
 }
 
 /* ---- manage one tournament: edit fields, move status, delete ---- */
-function ManageTournament({ tournament, sportName, onClose, onChanged, onOpenQueue }) {
+function ManageTournament({ tournament, sportName, sportSlug, onClose, onChanged, onOpenQueue }) {
   const { t, lang } = useLang();
   const m = t.admin.manage;
   const statusLabel = (s) => t.admin.status[s] || STATUS_LABEL[s] || s;
@@ -914,7 +1005,7 @@ function ManageTournament({ tournament, sportName, onClose, onChanged, onOpenQue
           </div>
         )}
 
-        <BracketPanel tournamentId={tournament.id} status={status} registered={registered} isTeam={isTeam} t={t} />
+        <BracketPanel tournamentId={tournament.id} status={status} registered={registered} isTeam={isTeam} sportSlug={sportSlug} t={t} />
 
         {/* danger zone */}
         <section className="border-t border-ink-100 pt-5">

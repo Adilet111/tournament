@@ -194,6 +194,13 @@ export function getUserStats(userId) {
   return get(`/users/${seg(userId)}/stats`);
 }
 
+/* POST /admin/users/:id/sports/:sport/rating/adjust — admin only; manually
+   nudge a user's skill rating for a sport, e.g. to correct a disputed match
+   result. `delta` is signed: positive awards points, negative deducts them. */
+export function adjustUserRating(userId, sportSlug, delta) {
+  return post(`/admin/users/${seg(userId)}/sports/${seg(sportSlug)}/rating/adjust`, { delta });
+}
+
 /* GET /admin/removed-registrations — players auto-removed when a tournament's
    age gates tightened. Default = pending (to contact); notified=true → already
    handled; tournamentId scopes to one tournament. */
