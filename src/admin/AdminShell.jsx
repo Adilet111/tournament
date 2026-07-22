@@ -18,6 +18,7 @@ export const Icon = {
   search: 'M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM21 21l-4.3-4.3',
   dots: 'M5 12h.01M12 12h.01M19 12h.01',
   ball: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM3.5 9h17M3.5 15h17M12 3c-3 2.5-3 15.5 0 18M12 3c3 2.5 3 15.5 0 18',
+  user: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 20c1.5-4 4.5-6 8-6s6.5 2 8 6',
 };
 
 export function Svg({ d, className = 'h-[18px] w-[18px]', strokeWidth = 1.7 }) {
@@ -147,7 +148,7 @@ export function Sidebar({ view, setView, nav, onExit }) {
 }
 
 /* ---- Topbar ---- */
-export function Topbar({ title, sub, view, setView, nav }) {
+export function Topbar({ title, sub, view, setView, nav, onExit }) {
   const { t } = useLang();
   return (
     <header className="sticky top-0 z-20 border-b border-ink-100 bg-white/85 backdrop-blur-md">
@@ -165,13 +166,16 @@ export function Topbar({ title, sub, view, setView, nav }) {
           <Svg d={Icon.bell} className="h-[18px] w-[18px]" />
           <span className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-accent" />
         </button>
-        <div className="flex items-center gap-2.5">
-          <Avatar name="River Club" size={36} />
-          <div className="hidden leading-tight sm:block">
-            <div className="text-[14px] font-600 text-ink-900">{t.admin.orgName}</div>
-            <div className="text-[12px] text-ink-500">{t.admin.orgRole}</div>
-          </div>
-        </div>
+        <button onClick={() => { window.location.hash = 'profile'; }}
+          className="flex items-center gap-1.5 rounded-full border border-ink-100 px-3.5 py-2 text-[13.5px] font-600 text-ink-700 hover:border-ink-300 hover:bg-ink-50">
+          <Svg d={Icon.user} className="h-[17px] w-[17px]" />
+          <span className="hidden sm:inline">{t.account.myProfile}</span>
+        </button>
+        <button onClick={onExit}
+          className="flex items-center gap-1.5 rounded-full border border-ink-100 px-3.5 py-2 text-[13.5px] font-600 text-ink-700 hover:border-ink-300 hover:bg-ink-50">
+          <Svg d={Icon.out} className="h-[17px] w-[17px]" />
+          <span className="hidden sm:inline">{t.admin.backToSite}</span>
+        </button>
       </div>
       {/* mobile nav */}
       <div className="flex gap-1 overflow-x-auto border-t border-ink-100 px-4 py-2 lg:hidden">

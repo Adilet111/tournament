@@ -362,7 +362,7 @@ export function Footer() {
           </div>
           {f.cols.map((c) => (
             <div key={c.h}>
-              <div className="font-mono text-[11px] uppercase tracking-[0.1em] text-ink-300">{c.h}</div>
+              <div className="font-mono text-[11px] uppercase tracking-[0.1em] text-ink-500">{c.h}</div>
               <ul className="mt-4 space-y-2.5">
                 {c.items.map((it) => (
                   <li key={it}><a href="#" className="text-[14.5px] text-ink-700 transition-colors hover:text-accent">{it}</a></li>

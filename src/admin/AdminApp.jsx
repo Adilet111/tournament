@@ -60,7 +60,7 @@ export function AdminApp({ onExit }) {
     <div className="flex min-h-screen bg-ink-50/50">
       <Sidebar view={view} setView={setView} nav={NAV} onExit={onExit} />
       <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar title={title} sub={sub} view={view} setView={setView} nav={NAV} />
+        <Topbar title={title} sub={sub} view={view} setView={setView} nav={NAV} onExit={onExit} />
         <main className="flex-1 px-6 py-6 lg:px-8 lg:py-8">{Body}</main>
       </div>
     </div>
