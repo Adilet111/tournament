@@ -495,6 +495,18 @@ function ReportResultModal({ match, roundLabel, entryById, onClose, onReported }
         <ParticipantResultCard name={name2} seedLabel={seedLabel2} isWinner={winner === 2} score={p2?.score} winnerLabel={bp.winnerPill}
           onClick={userId2 ? () => setViewUser(userId2) : undefined} />
 
+        {/* TEMP DIAGNOSTIC — remove once the bracket API's user-id field is confirmed.
+            Cards only become clickable when a userId resolves; this shows exactly
+            what fields ARE present on the participant/entry objects so we can fix
+            the resolver in one line instead of guessing again. */}
+        {(!userId1 || !userId2) && (
+          <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-[11.5px] leading-relaxed text-amber-800">
+            <p className="font-700">User-id debug info:</p>
+            <p>userId1: {userId1 ?? '(none)'} — p1 keys: {p1 ? Object.keys(p1).join(', ') : '(no p1)'} — entry1 keys: {e1 ? Object.keys(e1).join(', ') : '(no e1)'}</p>
+            <p>userId2: {userId2 ?? '(none)'} — p2 keys: {p2 ? Object.keys(p2).join(', ') : '(no p2)'} — entry2 keys: {e2 ? Object.keys(e2).join(', ') : '(no e2)'}</p>
+          </div>
+        )}
+
         {viewUser && <UserDetail userId={viewUser} onClose={() => setViewUser(null)} />}
       </Modal>
     );
