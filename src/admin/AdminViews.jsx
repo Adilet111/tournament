@@ -8,7 +8,7 @@ import {
   listAdminTournaments, getTournament, updateTournament, deleteTournament,
   listRegistrations, addRegistration, updateRegistration, deleteRegistration, getAdminUser,
   listRemovedRegistrations, markRemovedNotified, listTeamRegistrations,
-  getBracket, generateBracket, deleteBracket, reportMatchResult, getUserStats,
+  getBracket, generateBracket, deleteBracket, reportMatchResult, getUserStats, adjustUserRating,
 } from '../lib/api';
 import { roundLabel as roundLabelFor, winningSlot, buildFeedersByNext, nextPow2, placementInfo } from '../lib/bracketRounds';
 import { owned, REGISTRATIONS, SPONSORS, PROMOTIONS } from './adminData';
@@ -165,6 +165,7 @@ export function Competitions({ setView }) {
   const [filter, setFilter] = useState('all');
   const [tournaments, setTournaments] = useState([]);
   const [sportsMap, setSportsMap] = useState({});
+  const [sportSlugMap, setSportSlugMap] = useState({});
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
@@ -175,7 +176,9 @@ export function Competitions({ setView }) {
     Promise.all([listAdminTournaments(filter === 'all' ? undefined : filter), listSports()])
       .then(([ts, ss]) => {
         if (cancelled) return;
-        setSportsMap(Object.fromEntries((Array.isArray(ss) ? ss : []).map((s) => [s.id, s.name])));
+        const sportsList = Array.isArray(ss) ? ss : [];
+        setSportsMap(Object.fromEntries(sportsList.map((s) => [s.id, s.name])));
+        setSportSlugMap(Object.fromEntries(sportsList.map((s) => [s.id, s.slug || String(s.name || '').toLowerCase()])));
         setTournaments(Array.isArray(ts) ? ts : []);
         setFetchError(null);
       })
@@ -261,6 +264,7 @@ export function Competitions({ setView }) {
           tournament={managing}
           onOpenQueue={() => setView('notifications')}
           sportName={sportsMap[managing.sportId] || managing.sportId}
+          sportSlug={sportSlugMap[managing.sportId] || ''}
           onClose={() => setManaging(null)}
           onChanged={reload}
         />
@@ -428,12 +432,70 @@ function VsDivider({ label }) {
   );
 }
 
+/* Rating-adjust panel (POST /admin/users/:id/sports/:sport/rating/adjust) —
+   embedded inside UserDetail's profile tab when opened with a sport in
+   context (e.g. from a bracket match). `delta` is signed: positive awards
+   points, negative deducts them; quick-pick buttons are just a convenience,
+   the number field takes any integer. */
+function AdjustRatingPanel({ userId, sportSlug }) {
+  const { t } = useLang();
+  const bp = t.admin.bracket;
+  const [delta, setDelta] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  const [applied, setApplied] = useState(null); // last-applied delta, or null
+
+  const apply = async (amount) => {
+    const n = Number(amount);
+    if (!n || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await adjustUserRating(userId, sportSlug, n);
+      setApplied(n);
+      setDelta('');
+    } catch (e) {
+      setError(apiErrorMessage(e, t));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className="mb-5 rounded-2xl border border-accent/25 bg-[var(--accent-soft)] p-4">
+      <span className="font-mono text-[11px] uppercase tracking-wide text-ink-500">
+        {bp.adjustRating} · {t.data.sports[sportSlug] ?? sportSlug}
+      </span>
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Btn variant="outline" size="sm" disabled={busy} onClick={() => apply(10)}>+10</Btn>
+        <Btn variant="outline" size="sm" disabled={busy} onClick={() => apply(25)}>+25</Btn>
+        <Btn variant="outline" size="sm" disabled={busy} onClick={() => apply(-10)}>−10</Btn>
+        <Btn variant="outline" size="sm" disabled={busy} onClick={() => apply(-25)}>−25</Btn>
+      </div>
+
+      <div className="mt-3 flex items-center gap-2.5">
+        <input type="number" value={delta} onChange={(e) => setDelta(e.target.value)} placeholder={bp.adjustCustomPlaceholder}
+          className="w-24 rounded-xl border border-ink-200 bg-white px-3 py-2 text-center font-mono text-[14px] text-ink-900 outline-none focus:border-accent" />
+        <Btn variant="primary" size="sm" disabled={!delta || busy} onClick={() => apply(delta)}>
+          {busy ? bp.adjustApplying : bp.adjustApply}
+        </Btn>
+      </div>
+
+      {error && <p className="mt-2.5 text-[13px] text-red-600">{error}</p>}
+      {applied != null && (
+        <p className="mt-2.5 text-[13px] font-600 text-emerald-700">{bp.adjustAppliedFn(applied)}</p>
+      )}
+    </section>
+  );
+}
+
 /* Report or review a match's result (~440px modal), per DESIGN_PROMPTS §13.
    Interactive form for a pending match with both sides known (opened via
    MiniMatchCard's hover "Report result" button); read-only display for an
    already-completed match (opened by clicking the mini card itself) — results
    are immutable once reported (NEW.md §17), so there's nothing to edit. */
-function ReportResultModal({ match, roundLabel, entryById, regUserMap, registrations, onClose, onReported }) {
+function ReportResultModal({ match, roundLabel, entryById, regUserMap, sportSlug, onClose, onReported }) {
   const { t, lang } = useLang();
   const bp = t.admin.bracket;
   const isCompleted = match.status === 'completed';
@@ -494,20 +556,7 @@ function ReportResultModal({ match, roundLabel, entryById, regUserMap, registrat
         <ParticipantResultCard name={name2} seedLabel={seedLabel2} isWinner={winner === 2} score={p2?.score} winnerLabel={bp.winnerPill}
           onClick={userId2 ? () => setViewUser(userId2) : undefined} />
 
-        {/* TEMP DIAGNOSTIC — remove once confirmed working. userId is now resolved
-            via entry.registrationId -> registrations list; if it's still missing,
-            this reveals whether registrations loaded and what a row's own id
-            field is actually called (registrationId vs id vs something else). */}
-        {(!userId1 || !userId2) && (
-          <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-[11.5px] leading-relaxed text-amber-800">
-            <p className="font-700">User-id debug info (round 2):</p>
-            <p>entry1.registrationId: {e1?.registrationId ?? '(none)'} → resolved userId1: {userId1 ?? '(none)'}</p>
-            <p>entry2.registrationId: {e2?.registrationId ?? '(none)'} → resolved userId2: {userId2 ?? '(none)'}</p>
-            <p>registrations loaded: {registrations.length} — sample row keys: {registrations[0] ? Object.keys(registrations[0]).join(', ') : '(none loaded)'}</p>
-          </div>
-        )}
-
-        {viewUser && <UserDetail userId={viewUser} onClose={() => setViewUser(null)} />}
+        {viewUser && <UserDetail userId={viewUser} sportSlug={sportSlug} onClose={() => setViewUser(null)} />}
       </Modal>
     );
   }
@@ -550,7 +599,7 @@ function ReportResultModal({ match, roundLabel, entryById, regUserMap, registrat
    flow and (once closed) previews the size/rounds/byes the current
    registration count would produce; once generated it shows the stats chips,
    a compact bracket preview, and delete (locked once any match is played). */
-function BracketPanel({ tournamentId, status, registered, isTeam, t }) {
+function BracketPanel({ tournamentId, status, registered, isTeam, sportSlug, t }) {
   const bp = t.admin.bracket;
   const bt = t.bracket;
   const [state, setState] = useState('loading'); // loading | ready | error
@@ -716,7 +765,7 @@ function BracketPanel({ tournamentId, status, registered, isTeam, t }) {
           roundLabel={reportMatch.roundLabel}
           entryById={entryById}
           regUserMap={regUserMap}
-          registrations={registrations}
+          sportSlug={sportSlug}
           onClose={() => setReportMatch(null)}
           onReported={() => { setReportMatch(null); reload(); }}
         />
@@ -726,7 +775,7 @@ function BracketPanel({ tournamentId, status, registered, isTeam, t }) {
 }
 
 /* ---- manage one tournament: edit fields, move status, delete ---- */
-function ManageTournament({ tournament, sportName, onClose, onChanged, onOpenQueue }) {
+function ManageTournament({ tournament, sportName, sportSlug, onClose, onChanged, onOpenQueue }) {
   const { t, lang } = useLang();
   const m = t.admin.manage;
   const statusLabel = (s) => t.admin.status[s] || STATUS_LABEL[s] || s;
@@ -963,7 +1012,7 @@ function ManageTournament({ tournament, sportName, onClose, onChanged, onOpenQue
           </div>
         )}
 
-        <BracketPanel tournamentId={tournament.id} status={status} registered={registered} isTeam={isTeam} t={t} />
+        <BracketPanel tournamentId={tournament.id} status={status} registered={registered} isTeam={isTeam} sportSlug={sportSlug} t={t} />
 
         {/* danger zone */}
         <section className="border-t border-ink-100 pt-5">
@@ -1415,7 +1464,7 @@ function UserStatsTab({ userId, t, lang }) {
   );
 }
 
-function UserDetail({ userId, onClose }) {
+function UserDetail({ userId, sportSlug, onClose }) {
   const { t, lang } = useLang();
   const ud = t.admin.userDetail;
   const [tab, setTab] = useState('profile'); // profile | registrations | statistics
@@ -1459,6 +1508,8 @@ function UserDetail({ userId, onClose }) {
 
           {tab === 'profile' && (
             <div className="space-y-6">
+              {sportSlug && <AdjustRatingPanel userId={userId} sportSlug={sportSlug} />}
+
               <section>
                 <span className={lbl}>{ud.account}</span>
                 <div className="mt-2 grid grid-cols-2 gap-3 text-[14px]">

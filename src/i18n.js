@@ -733,6 +733,12 @@ export const translations = {
         confirmResult:    "Confirm result",
         reporting:        "Reporting…",
         completedFn:      (date) => `Completed · ${date}`,
+
+        adjustRating:            "Adjust rating",
+        adjustCustomPlaceholder: "±pts",
+        adjustApply:             "Apply",
+        adjustApplying:          "Applying…",
+        adjustAppliedFn:         (n) => `Applied ${n > 0 ? '+' : ''}${n} points.`,
       },
 
       addParticipant: {
@@ -1690,6 +1696,12 @@ export const translations = {
         confirmResult:    "Подтвердить результат",
         reporting:        "Сохраняем…",
         completedFn:      (date) => `Завершено · ${date}`,
+
+        adjustRating:            "Изменить рейтинг",
+        adjustCustomPlaceholder: "±очки",
+        adjustApply:             "Применить",
+        adjustApplying:          "Применяем…",
+        adjustAppliedFn:         (n) => `Применено ${n > 0 ? '+' : ''}${n} очков.`,
       },
 
       addParticipant: {
