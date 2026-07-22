@@ -433,7 +433,7 @@ function VsDivider({ label }) {
    MiniMatchCard's hover "Report result" button); read-only display for an
    already-completed match (opened by clicking the mini card itself) — results
    are immutable once reported (NEW.md §17), so there's nothing to edit. */
-function ReportResultModal({ match, roundLabel, entryById, onClose, onReported }) {
+function ReportResultModal({ match, roundLabel, entryById, regUserMap, registrations, onClose, onReported }) {
   const { t, lang } = useLang();
   const bp = t.admin.bracket;
   const isCompleted = match.status === 'completed';
@@ -453,11 +453,10 @@ function ReportResultModal({ match, roundLabel, entryById, onClose, onReported }
   const name2 = p2?.displayName ?? e2?.displayName ?? '—';
   const seedLabel1 = e1?.seed != null ? bp.seedFn(e1.seed) : '';
   const seedLabel2 = e2?.seed != null ? bp.seedFn(e2.seed) : '';
-  // Bracket entries are frozen from registrations at generation time and
-  // should carry the same userId; defensive fallback in case the field name
-  // differs from what's assumed here.
-  const userId1 = p1?.userId ?? e1?.userId ?? e1?.user?.id ?? null;
-  const userId2 = p2?.userId ?? e2?.userId ?? e2?.user?.id ?? null;
+  // Bracket entries only carry a registrationId, not a userId directly —
+  // resolve it through the tournament's registrations list (regUserMap).
+  const userId1 = regUserMap?.get(e1?.registrationId) ?? p1?.userId ?? null;
+  const userId2 = regUserMap?.get(e2?.registrationId) ?? p2?.userId ?? null;
 
   const submit = async () => {
     if (!winnerSlot || busy) return;
@@ -495,15 +494,16 @@ function ReportResultModal({ match, roundLabel, entryById, onClose, onReported }
         <ParticipantResultCard name={name2} seedLabel={seedLabel2} isWinner={winner === 2} score={p2?.score} winnerLabel={bp.winnerPill}
           onClick={userId2 ? () => setViewUser(userId2) : undefined} />
 
-        {/* TEMP DIAGNOSTIC — remove once the bracket API's user-id field is confirmed.
-            Cards only become clickable when a userId resolves; this shows exactly
-            what fields ARE present on the participant/entry objects so we can fix
-            the resolver in one line instead of guessing again. */}
+        {/* TEMP DIAGNOSTIC — remove once confirmed working. userId is now resolved
+            via entry.registrationId -> registrations list; if it's still missing,
+            this reveals whether registrations loaded and what a row's own id
+            field is actually called (registrationId vs id vs something else). */}
         {(!userId1 || !userId2) && (
           <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-[11.5px] leading-relaxed text-amber-800">
-            <p className="font-700">User-id debug info:</p>
-            <p>userId1: {userId1 ?? '(none)'} — p1 keys: {p1 ? Object.keys(p1).join(', ') : '(no p1)'} — entry1 keys: {e1 ? Object.keys(e1).join(', ') : '(no e1)'}</p>
-            <p>userId2: {userId2 ?? '(none)'} — p2 keys: {p2 ? Object.keys(p2).join(', ') : '(no p2)'} — entry2 keys: {e2 ? Object.keys(e2).join(', ') : '(no e2)'}</p>
+            <p className="font-700">User-id debug info (round 2):</p>
+            <p>entry1.registrationId: {e1?.registrationId ?? '(none)'} → resolved userId1: {userId1 ?? '(none)'}</p>
+            <p>entry2.registrationId: {e2?.registrationId ?? '(none)'} → resolved userId2: {userId2 ?? '(none)'}</p>
+            <p>registrations loaded: {registrations.length} — sample row keys: {registrations[0] ? Object.keys(registrations[0]).join(', ') : '(none loaded)'}</p>
           </div>
         )}
 
@@ -555,6 +555,7 @@ function BracketPanel({ tournamentId, status, registered, isTeam, t }) {
   const bt = t.bracket;
   const [state, setState] = useState('loading'); // loading | ready | error
   const [bracket, setBracket] = useState(null);
+  const [registrations, setRegistrations] = useState([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
@@ -562,8 +563,16 @@ function BracketPanel({ tournamentId, status, registered, isTeam, t }) {
 
   useEffect(() => {
     let cancelled = false;
-    getBracket(tournamentId)
-      .then((b) => { if (!cancelled) { setBracket(b); setState('ready'); } })
+    // Bracket entries only carry a registrationId, not a userId — fetch the
+    // tournament's registrations alongside so completed-match cards can
+    // resolve a participant to their account (registrationId -> userId).
+    Promise.all([getBracket(tournamentId), listRegistrations(tournamentId)])
+      .then(([b, regs]) => {
+        if (cancelled) return;
+        setBracket(b);
+        setRegistrations(Array.isArray(regs) ? regs : []);
+        setState('ready');
+      })
       .catch((e) => { if (!cancelled) { setError(apiErrorMessage(e, t)); setState('error'); } });
     return () => { cancelled = true; };
   }, [tournamentId, reloadKey, t]);
@@ -573,6 +582,16 @@ function BracketPanel({ tournamentId, status, registered, isTeam, t }) {
   const rounds = useMemo(() => [...(bracket?.rounds || [])].sort((a, b) => a.round - b.round), [bracket]);
   const entries = useMemo(() => bracket?.entries || [], [bracket]);
   const entryById = useMemo(() => new Map(entries.map((e) => [e.id, e])), [entries]);
+  // registrationId (bracket entry) -> userId, via the tournament's own
+  // registrations list. Defensive on the registration row's own id field.
+  const regUserMap = useMemo(() => {
+    const m = new Map();
+    for (const r of registrations) {
+      const key = r.registrationId ?? r.id;
+      if (key != null) m.set(key, r.userId);
+    }
+    return m;
+  }, [registrations]);
   const totalRounds = rounds.length;
   const label = useCallback((r) => roundLabelFor(r, totalRounds, bt), [totalRounds, bt]);
   const feedersByNext = useMemo(() => buildFeedersByNext(rounds), [rounds]);
@@ -696,6 +715,8 @@ function BracketPanel({ tournamentId, status, registered, isTeam, t }) {
           match={reportMatch.match}
           roundLabel={reportMatch.roundLabel}
           entryById={entryById}
+          regUserMap={regUserMap}
+          registrations={registrations}
           onClose={() => setReportMatch(null)}
           onReported={() => { setReportMatch(null); reload(); }}
         />
