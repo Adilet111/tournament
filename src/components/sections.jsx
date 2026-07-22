@@ -212,7 +212,7 @@ function HeroCentered() {
         <p className="mx-auto mt-6 max-w-xl text-[18px] leading-relaxed text-ink-500">{h.c_body}</p>
         <div className="mx-auto mt-9 flex max-w-2xl flex-col items-stretch gap-2 rounded-2xl border border-ink-100 bg-white p-2 shadow-lg sm:flex-row sm:rounded-full">
           <div className="flex flex-1 items-center gap-2 rounded-xl px-3 sm:rounded-full">
-            <span className="font-mono text-[11px] uppercase tracking-wide text-ink-300">{h.c_sportLbl}</span>
+            <span className="font-mono text-[11px] uppercase tracking-wide text-ink-500">{h.c_sportLbl}</span>
             <select value={sport} onChange={(e) => setSport(e.target.value)}
               className="w-full bg-transparent py-3 text-[15px] font-500 text-ink-900 outline-none">
               <option value="">{h.c_anySport}</option>
@@ -221,7 +221,7 @@ function HeroCentered() {
           </div>
           <div className="hidden w-px bg-ink-100 sm:block" />
           <div className="flex flex-1 items-center gap-2 rounded-xl px-3 sm:rounded-full">
-            <span className="font-mono text-[11px] uppercase tracking-wide text-ink-300">{h.c_cityLbl}</span>
+            <span className="font-mono text-[11px] uppercase tracking-wide text-ink-500">{h.c_cityLbl}</span>
             <select value={loc} onChange={(e) => setLoc(e.target.value)}
               className="w-full bg-transparent py-3 text-[15px] font-500 text-ink-900 outline-none">
               <option value="">{h.c_anywhere}</option>
@@ -231,7 +231,7 @@ function HeroCentered() {
           <Btn variant="primary" size="lg" className="sm:!px-6" onClick={go}>{h.c_searchCta} <Arrow /></Btn>
         </div>
         <div className="mt-7 flex flex-wrap items-center justify-center gap-2 text-ink-500">
-          <span className="font-mono text-[11px] uppercase tracking-wide text-ink-300">{h.c_popular}</span>
+          <span className="font-mono text-[11px] uppercase tracking-wide text-ink-500">{h.c_popular}</span>
           {["running", "cycling", "tennis", "padel"].map((s) => (
             <button key={s} onClick={() => { window.dispatchEvent(new CustomEvent("rally:filter", { detail: { sport: s } })); scrollToId("browse"); }}
               className="rounded-full border border-ink-100 px-3 py-1.5 text-[13px] font-500 text-ink-700 transition-colors hover:border-ink-300 hover:bg-ink-50">

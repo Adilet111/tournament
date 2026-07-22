@@ -231,7 +231,7 @@ export function Browse({ onRegister }) {
         <div className="reveal mt-8 rounded-2xl border border-ink-100 bg-white p-4 shadow-sm">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
             <div className="flex items-center gap-2">
-              <span className="font-mono text-[11px] uppercase tracking-wide text-ink-300">{b.sportLbl}</span>
+              <span className="font-mono text-[11px] uppercase tracking-wide text-ink-500">{b.sportLbl}</span>
               <div className="flex gap-2 overflow-x-auto scrollbar-thin pb-1">
                 <FilterChip active={!sport} onClick={() => setSport("")}>{b.allSports}</FilterChip>
                 {sports.map((s) => (
@@ -244,21 +244,21 @@ export function Browse({ onRegister }) {
           </div>
           <div className="mt-4 grid grid-cols-1 gap-3 border-t border-ink-100 pt-4 sm:grid-cols-3">
             <label className="flex items-center gap-2 rounded-xl border border-ink-100 px-3">
-              <span className="font-mono text-[11px] uppercase tracking-wide text-ink-300">{b.cityLbl}</span>
+              <span className="font-mono text-[11px] uppercase tracking-wide text-ink-500">{b.cityLbl}</span>
               <select value={location} onChange={(e) => setLocation(e.target.value)} className="w-full bg-transparent py-2.5 text-[14.5px] font-500 text-ink-900 outline-none">
                 <option value="">{b.anywhere}</option>
                 {cities.map((c) => <option key={c.slug} value={c.slug}>{lang === 'ru' ? c.ru : c.en}</option>)}
               </select>
             </label>
             <label className="flex items-center gap-2 rounded-xl border border-ink-100 px-3">
-              <span className="font-mono text-[11px] uppercase tracking-wide text-ink-300">{b.whenLbl}</span>
+              <span className="font-mono text-[11px] uppercase tracking-wide text-ink-500">{b.whenLbl}</span>
               <select value={win} onChange={(e) => setWin(e.target.value)} className="w-full bg-transparent py-2.5 text-[14.5px] font-500 text-ink-900 outline-none">
                 <option value="">{b.anyTime}</option>
                 {WINDOWS.map((w) => <option key={w.id} value={w.id}>{t.data.windows[w.id]}</option>)}
               </select>
             </label>
             <label className="flex items-center gap-2 rounded-xl border border-ink-100 px-3">
-              <span className="font-mono text-[11px] uppercase tracking-wide text-ink-300">{b.levelLbl}</span>
+              <span className="font-mono text-[11px] uppercase tracking-wide text-ink-500">{b.levelLbl}</span>
               <select value={cat} onChange={(e) => setCat(e.target.value)} className="w-full bg-transparent py-2.5 text-[14.5px] font-500 text-ink-900 outline-none">
                 <option value="">{b.allLevels}</option>
                 {CATEGORIES.map((k) => <option key={k.id} value={k.id}>{t.data.categories[k.id]}</option>)}
