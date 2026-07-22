@@ -134,23 +134,24 @@ export function Nav({ onAuth, onCreateProfile }) {
                   ? "bg-ink-50 font-600 text-ink-900"
                   : "font-500 text-ink-700 hover:bg-ink-50")}>{l.label}</a>
             ))}
-            <div className="mt-2 flex items-center gap-2">
+            <div className="mt-2 flex items-center justify-between">
               <LangSwitcher />
-              {isAuthed ? (
-                <>
-                  <Btn variant="primary" size="sm" className="flex-1" onClick={() => { onCreateProfile(); setOpen(false); }}>{t.account.createProfile}</Btn>
-                  {isAdmin && (
-                    <Btn variant="dark" size="sm" className="flex-1" onClick={() => { window.location.hash = 'admin'; setOpen(false); }}>{t.account.admin}</Btn>
-                  )}
-                  <Btn variant="outline" size="sm" className="flex-1" onClick={() => { signOut(); setOpen(false); }}>{t.account.signOut}</Btn>
-                </>
-              ) : (
-                <>
-                  <Btn variant="outline" size="sm" className="flex-1" onClick={() => { onAuth("signin"); setOpen(false); }}>{t.nav.signIn}</Btn>
-                  <Btn variant="primary" size="sm" className="flex-1" onClick={() => { onAuth("signup"); setOpen(false); }}>{t.nav.register}</Btn>
-                </>
-              )}
             </div>
+            {isAuthed ? (
+              <div className="mt-2 flex flex-col gap-2">
+                <Btn variant="primary" size="sm" className="justify-center" onClick={() => { window.location.hash = 'profile'; setOpen(false); }}>{t.account.myProfile}</Btn>
+                <Btn variant="outline" size="sm" className="justify-center" onClick={() => { onCreateProfile(); setOpen(false); }}>{t.account.createProfile}</Btn>
+                {isAdmin && (
+                  <Btn variant="dark" size="sm" className="justify-center" onClick={() => { window.location.hash = 'admin'; setOpen(false); }}>{t.account.admin}</Btn>
+                )}
+                <Btn variant="outline" size="sm" className="justify-center" onClick={() => { signOut(); setOpen(false); }}>{t.account.signOut}</Btn>
+              </div>
+            ) : (
+              <div className="mt-2 flex items-center gap-2">
+                <Btn variant="outline" size="sm" className="flex-1" onClick={() => { onAuth("signin"); setOpen(false); }}>{t.nav.signIn}</Btn>
+                <Btn variant="primary" size="sm" className="flex-1" onClick={() => { onAuth("signup"); setOpen(false); }}>{t.nav.register}</Btn>
+              </div>
+            )}
           </div>
         </div>
       )}
