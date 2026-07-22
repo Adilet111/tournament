@@ -210,6 +210,9 @@ export function ProfileOnboarding({ sport, sportLabel, name, onClose, onComplete
   const [typing, setTyping] = useState(false);
   const [qIndex, setQIndex] = useState(-1);
   const [optionsVisible, setOptionsVisible] = useState(false);
+  // Drives the progress bar. Only ever increases (once per chosen answer), so
+  // the bar can't fall back when the next question's options appear.
+  const [answeredCount, setAnsweredCount] = useState(0);
   const [done, setDone] = useState(false);
   const [result, setResult] = useState(null); // rank returned by the backend
   const [scoreState, setScoreState] = useState('idle'); // idle | scoring | error
@@ -292,6 +295,7 @@ export function ProfileOnboarding({ sport, sportLabel, name, onClose, onComplete
     if (!optionsVisible) return;
     setOptionsVisible(false);
     answersRef.current[questions[qIndex].id] = opt.value;
+    setAnsweredCount((c) => c + 1);
     setItems((m) => [...m, { type: 'user', id: uid(), text: opt.label }]);
     await wait(280);
     await sayBot(randomAck(ob.acks));
@@ -308,7 +312,7 @@ export function ProfileOnboarding({ sport, sportLabel, name, onClose, onComplete
   };
 
   const totalSteps = questions.length;
-  const progressPct = done ? 100 : totalSteps ? Math.round(((qIndex + (optionsVisible ? 0 : 0.4)) / totalSteps) * 100) : 0;
+  const progressPct = done ? 100 : totalSteps ? Math.round((answeredCount / totalSteps) * 100) : 0;
 
   return (
     <div className="fixed inset-0 z-[60] flex flex-col bg-[#0b0d13]">

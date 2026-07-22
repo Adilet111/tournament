@@ -3,7 +3,7 @@ import { SPORTS } from '../data';
 import { useCities } from '../lib/cities';
 import { useLang } from '../LangContext';
 import { useSession } from '../SessionContext';
-import { Logo, Btn, Arrow, SportTag, Pill, LangSwitcher, useReveal, scrollToId } from './primitives';
+import { Logo, Btn, Arrow, LangSwitcher, useReveal, scrollToId } from './primitives';
 
 /* ---- signed-in user menu ---- */
 function initials(name) {
@@ -16,7 +16,7 @@ function initials(name) {
     .toUpperCase() || 'U';
 }
 
-function UserMenu({ onCreateProfile }) {
+function UserMenu() {
   const { t } = useLang();
   const { user, signOut, isAdmin } = useSession();
   const [open, setOpen] = useState(false);
@@ -48,10 +48,6 @@ function UserMenu({ onCreateProfile }) {
               <svg viewBox="0 0 24 24" className="h-[17px] w-[17px] text-accent" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4" /><path d="M4 20c1.5-3.5 4.5-5 8-5s6.5 1.5 8 5" /></svg>
               {t.account.myProfile}
             </button>
-            <button onClick={() => { setOpen(false); onCreateProfile(); }}
-              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[14px] font-600 text-ink-900 hover:bg-ink-50">
-              <span className="text-accent">＋</span> {t.account.createProfile}
-            </button>
             {isAdmin && (
               <button onClick={() => { setOpen(false); window.location.hash = 'admin'; }}
                 className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[14px] font-600 text-ink-900 hover:bg-ink-50">
@@ -71,7 +67,7 @@ function UserMenu({ onCreateProfile }) {
 }
 
 /* ---- Nav ---- */
-export function Nav({ onAuth, onCreateProfile }) {
+export function Nav({ onAuth }) {
   const { t } = useLang();
   const { isAuthed, isAdmin, signOut } = useSession();
   const [scrolled, setScrolled] = useState(false);
@@ -110,7 +106,7 @@ export function Nav({ onAuth, onCreateProfile }) {
         <div className="hidden items-center gap-2 md:flex">
           <LangSwitcher />
           {isAuthed ? (
-            <UserMenu onCreateProfile={onCreateProfile} />
+            <UserMenu />
           ) : (
             <>
               <Btn variant="ghost" size="sm" onClick={() => onAuth("signin")}>{t.nav.signIn}</Btn>
@@ -140,7 +136,6 @@ export function Nav({ onAuth, onCreateProfile }) {
             {isAuthed ? (
               <div className="mt-2 flex flex-col gap-2">
                 <Btn variant="primary" size="sm" className="justify-center" onClick={() => { window.location.hash = 'profile'; setOpen(false); }}>{t.account.myProfile}</Btn>
-                <Btn variant="outline" size="sm" className="justify-center" onClick={() => { onCreateProfile(); setOpen(false); }}>{t.account.createProfile}</Btn>
                 {isAdmin && (
                   <Btn variant="dark" size="sm" className="justify-center" onClick={() => { window.location.hash = 'admin'; setOpen(false); }}>{t.account.admin}</Btn>
                 )}

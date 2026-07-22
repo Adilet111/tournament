@@ -340,6 +340,15 @@ export function getSportQuestions(sport) {
   return get(`/sports/${seg(sport)}/questions`);
 }
 
+/* GET /sports/:sport/tiers — that sport's rank ladder (public), e.g.
+   GET /sports/football/tiers → { sport, constants, tiers, divisionLabels,
+   lpScale }. Feeds lib/rank.js's placeTier() for client-side rank display
+   without a round trip. Changes rarely — callers should cache it (see
+   lib/rank.js's getTierConfig). */
+export function getSportTiers(sport) {
+  return get(`/sports/${seg(sport)}/tiers`);
+}
+
 /* POST /sports/:sport/profile — submit onboarding answers, e.g.
    POST /sports/football/profile with body { answers: { ... } }. The backend
    scores the answers and returns the created profile, including a `placement`

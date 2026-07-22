@@ -9,7 +9,7 @@ import { useSession } from '../SessionContext';
 import { listSports, getProfile, getMyTournaments } from '../lib/api';
 import { useCities, cityLabel } from '../lib/cities';
 import { goToTeam, goToBracket, goToStats } from '../lib/nav';
-import { placeElo } from '../lib/rank';
+import { placeEloForSport } from '../lib/rank';
 import { Logo, Btn, LangSwitcher, SportTag, Pill } from './primitives';
 import { normalizeRank } from './onboarding';
 import { MyTeamsSection } from './teams';
@@ -120,9 +120,13 @@ export function ProfilePage({ onExit }) {
           if (!slug) return null;
           const profile = await getProfile(slug); // null on 404 (no profile)
           if (!profile) return null;
-          // Derive tier/division/LP from the raw Elo with the backend's
-          // place() logic, then map the tier to its colours.
-          const placed = placeElo(profile.placement?.elo ?? profile.rating ?? profile.elo);
+          // Trust the backend's own placement when the profile already carries
+          // one; only fall back to computing it client-side (via that sport's
+          // tier ladder, GET /sports/:sport/tiers) when it doesn't.
+          const elo = profile.placement?.elo ?? profile.rating ?? profile.elo;
+          const placed = profile.placement?.tier
+            ? profile.placement
+            : await placeEloForSport(slug, elo);
           return { slug, rank: normalizeRank(placed), lp: placed.lp };
         })
       );

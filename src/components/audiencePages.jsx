@@ -4,7 +4,6 @@ import { useSession } from '../SessionContext';
 import { Nav, Footer, HeroEyebrow } from './sections';
 import { Btn, Arrow, scrollToId } from './primitives';
 import { AuthPage } from './auth';
-import { ProfileModal } from './profile';
 import { goHome } from '../lib/nav';
 
 /* Audience pages: Players explainer + contact pages (Organize/Sponsors/Recruiters).
@@ -22,14 +21,12 @@ function goHomeSection(id) {
    `children` may be a function to receive `openAuth` for in-page CTAs. */
 function PageShell({ children }) {
   const [authMode, setAuthMode] = useState(null); // "signin" | "signup" | null
-  const [profileOpen, setProfileOpen] = useState(false);
   return (
     <div id="top">
-      <Nav onAuth={setAuthMode} onCreateProfile={() => setProfileOpen(true)} />
+      <Nav onAuth={setAuthMode} />
       <main>{typeof children === 'function' ? children(setAuthMode) : children}</main>
       <Footer />
       {authMode && <AuthPage mode={authMode} onClose={() => setAuthMode(null)} />}
-      {profileOpen && <ProfileModal onClose={() => setProfileOpen(false)} />}
       <style>{`@keyframes fadein{from{opacity:0}to{opacity:1}}`}</style>
     </div>
   );

@@ -1,49 +1,61 @@
-/* Rally — rank placement, a JS port of the backend's `place()` (rank.ts).
-   Derives { tier, division, lp } from a raw Elo so the client can render a
-   rank when it only has the number. Keep the config in sync with the backend's
-   RankConfig — if the tier boundaries drift, the two will disagree. */
+/* Rally — rank placement, a 1:1 port of the backend's `place()`
+   (src/modules/profiles/rating.ts). Derives { tier, division, lp } from a raw
+   Elo so the client can render a rank when it only has the number.
 
-/* Iron → Challenger ladder over the app's 0–3000+ rating scale. Divisional
-   tiers are 400 Elo wide (4 × 100-LP divisions); Master and above are open
-   leaderboard tiers (divisions: 0 → ranked by raw Elo, no division/LP). */
-export const RANK_CONFIG = {
-  tiers: [
-    { name: 'Iron',        min: null, max: 400,  divisions: 4 },
-    { name: 'Bronze',      min: 400,  max: 800,  divisions: 4 },
-    { name: 'Silver',      min: 800,  max: 1200, divisions: 4 },
-    { name: 'Gold',        min: 1200, max: 1600, divisions: 4 },
-    { name: 'Platinum',    min: 1600, max: 2000, divisions: 4 },
-    { name: 'Emerald',     min: 2000, max: 2400, divisions: 4 },
-    { name: 'Diamond',     min: 2400, max: 2800, divisions: 4 },
-    { name: 'Master',      min: 2800, max: 3000, divisions: 0 },
-    { name: 'Grandmaster', min: 3000, max: 3200, divisions: 0 },
-    { name: 'Challenger',  min: 3200, max: null, divisions: 0 },
-  ],
-  divisionLabels: ['IV', 'III', 'II', 'I'], // low → high
-  lpScale: 100,
-};
+   The ladder is NOT a fixed app-wide ladder — every sport has its own tier
+   config (boundaries, division count, labels) served by
+   GET /sports/:sport/tiers. Fetch it per sport via getTierConfig (cached,
+   since it changes rarely) rather than hardcoding a ladder here.
 
-export function place(cfg, elo) {
-  for (const t of cfg.tiers) {
+   Tier/division names (Iron/Bronze/.../Challenger, I/II/III/IV) are never
+   translated — always display them as returned by the backend. */
+import { getSportTiers } from './api';
+
+/* Place a raw Elo on a sport's ladder. `config` is a GET /sports/:sport/tiers
+   response: { tiers, divisionLabels, lpScale, ... }.
+   Boundary rule: a tier's range is [min, max) — `max` belongs to the next
+   tier's `min`, never this one. `divisions <= 0` (e.g. an open apex tier like
+   Challenger) means no division/LP; players there rank by raw Elo instead. */
+export function placeTier(elo, config) {
+  const { tiers, divisionLabels, lpScale } = config;
+  for (const t of tiers) {
     const min = t.min ?? -Infinity;
     const max = t.max ?? Infinity;
-    if (elo < min || elo >= max) continue; // half-open [min, max)
+    if (elo < min || elo >= max) continue; // not in this tier
 
-    // apex/open tier: no divisions, ranked by raw Elo
     if (t.divisions <= 0) {
       return { elo, tier: t.name, division: '', lp: 0 };
     }
-    // an open-bottom divisional tier has no finite width — pin below-range
-    // Elo to its lowest division at 0 LP
-    const floor = Number.isFinite(min) ? min : 0;
-    const width = (max - floor) / t.divisions;
-    let d = Math.floor((Math.max(elo, floor) - floor) / width);
-    if (d >= t.divisions) d = t.divisions - 1; // clamp top edge
-    const lp = Math.floor(((Math.max(elo, floor) - floor - d * width) / width) * cfg.lpScale);
-    return { elo, tier: t.name, division: cfg.divisionLabels[d], lp };
+
+    const width = (max - min) / t.divisions;
+    let d = Math.floor((elo - min) / width);
+    if (d >= t.divisions) d = t.divisions - 1;
+    const lp = Math.floor((((elo - min) - d * width) / width) * lpScale);
+
+    return { elo, tier: t.name, division: divisionLabels[d], lp };
   }
-  return { elo, tier: '', division: '', lp: 0 }; // outside all tiers
+  return { elo, tier: '', division: '', lp: 0 }; // outside all tiers (shouldn't happen)
 }
 
-/* Place a raw rating on the default ladder. */
-export const placeElo = (elo) => place(RANK_CONFIG, Number(elo) || 0);
+/* ---- per-sport config cache — tier ladders change rarely ---- */
+const _configCache = new Map(); // sport slug → config
+const _configPromises = new Map();
+
+export function getTierConfig(sport) {
+  if (_configCache.has(sport)) return Promise.resolve(_configCache.get(sport));
+  if (!_configPromises.has(sport)) {
+    _configPromises.set(
+      sport,
+      getSportTiers(sport)
+        .then((config) => { _configCache.set(sport, config); return config; })
+        .catch((e) => { _configPromises.delete(sport); throw e; }),
+    );
+  }
+  return _configPromises.get(sport);
+}
+
+/* Fetch (or reuse the cached) tier config for `sport` and place `elo` on it. */
+export async function placeEloForSport(sport, elo) {
+  const config = await getTierConfig(sport);
+  return placeTier(Number(elo) || 0, config);
+}

@@ -7,7 +7,6 @@ import { Browse, Participate } from './components/interactive';
 import { useTweaks, TweaksPanel, TweakSection, TweakRadio, TweakColor, TweakSelect } from './components/TweaksPanel';
 import { Btn, SportTag } from './components/primitives';
 import { AuthPage } from './components/auth';
-import { ProfileModal } from './components/profile';
 import { ProfileOnboarding } from './components/onboarding';
 import { AdminApp } from './admin/AdminApp';
 import { ProfilePage } from './components/profilePage';
@@ -211,7 +210,6 @@ function RallyApp() {
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
   const [reg, setReg] = useState(null);
   const [authMode, setAuthMode] = useState(null); // "signin" | "signup" | null
-  const [profileOpen, setProfileOpen] = useState(false);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -223,7 +221,7 @@ function RallyApp() {
 
   return (
     <div id="top">
-      <Nav onAuth={setAuthMode} onCreateProfile={() => setProfileOpen(true)} />
+      <Nav onAuth={setAuthMode} />
       <main>
         <Hero style={t.heroStyle} />
         <Browse onRegister={setReg} />
@@ -236,7 +234,6 @@ function RallyApp() {
         ? <TeamRegisterModal key={reg.id} comp={reg} onClose={() => setReg(null)} />
         : <RegisterModal key={reg.id} comp={reg} onClose={() => setReg(null)} />)}
       {authMode && <AuthPage mode={authMode} onClose={() => setAuthMode(null)} />}
-      {profileOpen && <ProfileModal onClose={() => setProfileOpen(false)} />}
 
       <TweaksPanel>
         <TweakSection label="Hero" />
