@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="design_doc_mode" content="canvas">
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>User Statistics Tab — Rally Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+:root{--ink-900:#0f172a;--ink-700:#334155;--ink-500:#64748b;--ink-300:#cbd5e1;--ink-100:#e2e8f0;--ink-50:#f1f5f9;--accent:#1d4ed8;--accent-soft:#eff4ff}
+*{box-sizing:border-box}
+body{margin:0;font-family:'Hanken Grotesk',system-ui,sans-serif;color:var(--ink-900);background:#f8fafc}
+.mono{font-family:'Geist Mono',ui-monospace,monospace}
+.label-tag{position:absolute;top:-30px;left:0;font-size:13px;font-weight:600;color:var(--ink-500)}
+.page{width:860px}
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--ink-100);margin-bottom:18px}
+.tab{font-size:13.5px;font-weight:600;color:var(--ink-500);padding:10px 16px;border:none;background:none;font-family:inherit;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab.on{color:var(--accent);border-bottom-color:var(--accent)}
+.sec{font-size:13px;font-weight:700;margin:18px 0 8px;color:var(--ink-700)}
+
+.tiles{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+.tile{background:#fff;border:1px solid var(--ink-100);border-radius:12px;padding:10px 12px}
+.tile.featured{background:var(--accent-soft);border-color:color-mix(in srgb, var(--accent) 30%, transparent)}
+.t-num{font-size:20px;font-weight:600;line-height:1}
+.tile.featured .t-num{color:var(--accent)}
+.t-label{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-500);margin-top:5px}
+.t-sub{font-size:11px;color:var(--ink-500);margin-top:2px}
+
+.tbl{background:#fff;border:1px solid var(--ink-100);border-radius:12px;overflow:hidden}
+.tr{display:grid;align-items:center;gap:10px;padding:9px 14px;font-size:13px;border-top:1px solid var(--ink-50)}
+.tr:first-child{border-top:none}
+.tr.head{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-500);padding:8px 14px}
+.tr:not(.head):hover{background:#f8fafc}
+.sport-grid{grid-template-columns:1.3fr 70px 100px 50px 70px 60px 70px 60px}
+.hist-grid{grid-template-columns:1.5fr 90px 90px 120px 44px 100px 64px}
+.num{justify-self:end;color:var(--ink-700)}
+.sport-name{font-weight:600;font-size:13.5px}
+.rating-pill{font-size:12px;font-weight:600;background:var(--accent-soft);color:var(--accent);padding:2px 9px;border-radius:999px;justify-self:end}
+.chip{font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:999px;background:var(--ink-50);color:var(--ink-700);justify-self:start}
+.chip-team{background:var(--accent-soft);color:var(--accent)}
+.dash{color:var(--ink-300);justify-self:start;padding-left:9px}
+.place-gold{font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;background:#fef9c3;color:#854d0e;justify-self:start}
+.place-silver{font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;background:var(--ink-50);color:var(--ink-700);border:1px solid var(--ink-100);justify-self:start}
+.place-plain{font-size:11px;font-weight:600;color:var(--ink-500);justify-self:start;padding:3px 0}
+.title-cell{font-weight:600;font-size:13.5px}
+.date{color:var(--ink-500)}
+.empty-row{padding:26px 14px;text-align:center;font-size:13px;color:var(--ink-500)}
+</style>
+</head>
+<body>
+
+<div style="position:absolute;left:60px;top:50px" class="page">
+<div class="label-tag">User detail — Statistics tab</div>
+<div class="tabs">
+<button class="tab">Profile</button>
+<button class="tab">Registrations</button>
+<button class="tab on">Statistics</button>
+</div>
+
+<div class="tiles">
+<div class="tile"><div class="t-num mono">3</div><div class="t-label">Tournaments</div></div>
+<div class="tile"><div class="t-num mono">1</div><div class="t-label">Won</div></div>
+<div class="tile"><div class="t-num mono">2</div><div class="t-label">Podiums</div></div>
+<div class="tile"><div class="t-num mono">9</div><div class="t-label">Matches</div><div class="t-sub mono">7W–2L</div></div>
+<div class="tile"><div class="t-num mono">78%</div><div class="t-label">Win rate</div></div>
+<div class="tile featured"><div class="t-num mono">145</div><div class="t-label" style="color:var(--accent)">Score</div></div>
+</div>
+
+<div class="sec">By sport</div>
+<div class="tbl">
+<div class="tr head sport-grid"><span>Sport</span><span style="justify-self:end">Rating</span><span style="justify-self:end">Tournaments</span><span style="justify-self:end">Won</span><span style="justify-self:end">Matches</span><span style="justify-self:end">W–L</span><span style="justify-self:end">Win rate</span><span style="justify-self:end">Score</span></div>
+<div class="tr sport-grid"><span class="sport-name">Football</span><span class="rating-pill mono">1480</span><span class="num mono">2</span><span class="num mono">1</span><span class="num mono">6</span><span class="num mono">5–1</span><span class="num mono">83%</span><span class="num mono">125</span></div>
+<div class="tr sport-grid"><span class="sport-name">Tennis</span><span class="rating-pill mono">1210</span><span class="num mono">1</span><span class="num mono">0</span><span class="num mono">3</span><span class="num mono">2–1</span><span class="num mono">67%</span><span class="num mono">20</span></div>
+</div>
+
+<div class="sec">Tournament history</div>
+<div class="tbl">
+<div class="tr head hist-grid"><span>Title</span><span>Date</span><span>Format</span><span>Team</span><span>Seed</span><span>Placement</span><span style="justify-self:end">Record</span></div>
+<div class="tr hist-grid"><span class="title-cell">City Cup 5v5</span><span class="date">Aug 1, 2026</span><span class="chip">Team · 5v5</span><span class="chip chip-team">Astana Wolves</span><span class="mono" style="color:var(--ink-500)">#1</span><span class="place-gold">Champion</span><span class="num mono">3W–0L</span></div>
+<div class="tr hist-grid"><span class="title-cell">Steppe League Spring</span><span class="date">May 17, 2026</span><span class="chip">Team · 5v5</span><span class="chip chip-team">Astana Wolves</span><span class="mono" style="color:var(--ink-500)">#4</span><span class="place-silver">Runner-up</span><span class="num mono">3W–1L</span></div>
+<div class="tr hist-grid"><span class="title-cell">Almaty Open Singles</span><span class="date">Mar 2, 2026</span><span class="chip">Solo</span><span class="dash">—</span><span class="mono" style="color:var(--ink-500)">#6</span><span class="place-plain">Semifinal</span><span class="num mono">2W–1L</span></div>
+</div>
+</div>
+
+<div class="page" style="position:absolute;left:980px;top:50px;width:860px">
+<div class="label-tag">Empty state</div>
+<div class="tabs">
+<button class="tab">Profile</button>
+<button class="tab">Registrations</button>
+<button class="tab on">Statistics</button>
+</div>
+<div class="tbl">
+<div class="empty-row">This user hasn't played any bracket matches yet.</div>
+</div>
+</div>
+
+<template id="__bundler_thumbnail"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#1d4ed8"/><text x="50" y="58" font-size="26" fill="#fff" text-anchor="middle" font-family="sans-serif">US</text></svg></template>
+</body>
+</html>

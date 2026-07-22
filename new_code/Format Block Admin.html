@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="design_doc_mode" content="canvas">
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Format Block — Rally Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+:root{--ink-900:#0f172a;--ink-700:#334155;--ink-500:#64748b;--ink-300:#cbd5e1;--ink-100:#e2e8f0;--ink-50:#f1f5f9;--accent:#1d4ed8;--accent-soft:#eff4ff}
+*{box-sizing:border-box}
+body{margin:0;font-family:'Hanken Grotesk',system-ui,sans-serif;color:var(--ink-900);background:#f8fafc}
+.mono{font-family:'Geist Mono',ui-monospace,monospace}
+.label-tag{position:absolute;top:-30px;left:0;font-size:13px;font-weight:600;color:var(--ink-500)}
+.card{width:560px;background:#fff;border:1px solid var(--ink-100);border-radius:20px;padding:24px}
+.sec-h{font-size:15px;font-weight:700;margin-bottom:18px}
+.label{display:block;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-500);margin-bottom:7px}
+.helper{font-size:12.5px;color:var(--ink-500);margin-top:6px;line-height:1.4}
+.row{display:flex;gap:20px;align-items:flex-start;margin-bottom:20px}
+.row:last-child{margin-bottom:0}
+
+.seg{display:inline-flex;background:var(--ink-50);border-radius:999px;padding:3px}
+.seg button{border:none;background:none;font-family:inherit;font-size:13.5px;font-weight:600;padding:8px 22px;border-radius:999px;cursor:pointer;color:var(--ink-500)}
+.seg button.on{background:#fff;color:var(--ink-900);box-shadow:0 1px 3px rgba(15,23,42,.12)}
+
+.stepper{display:inline-flex;align-items:center;border:1px solid var(--ink-100);border-radius:12px;overflow:hidden}
+.stepper button{border:none;background:#fff;width:34px;height:38px;font-size:16px;color:var(--ink-700);cursor:pointer;font-family:inherit}
+.stepper button:hover{background:var(--ink-50)}
+.stepper button[disabled]{color:var(--ink-300);cursor:not-allowed}
+.stepper .val{width:44px;text-align:center;font-size:14.5px;border-left:1px solid var(--ink-100);border-right:1px solid var(--ink-100);height:38px;line-height:38px}
+.stepper.disabled{background:var(--ink-50)}
+.stepper.disabled button,.stepper.disabled .val{background:var(--ink-50);color:var(--ink-300)}
+
+input{width:200px;border:1px solid var(--ink-100);border-radius:12px;padding:10px 12px;font-size:14.5px;font-family:inherit;color:var(--ink-900);background:#fff;outline:none}
+input:focus{border-color:var(--accent)}
+
+.badge-lock{display:inline-flex;align-items:center;gap:8px;background:var(--accent-soft);color:var(--accent);border:1px solid color-mix(in srgb, var(--accent) 30%, transparent);font-size:13.5px;font-weight:700;padding:9px 16px;border-radius:999px}
+.tooltip-wrap{position:relative;display:inline-block}
+.tooltip{position:absolute;left:0;top:calc(100% + 8px);background:var(--ink-900);color:#fff;font-size:12px;font-weight:500;padding:8px 11px;border-radius:10px;width:130px;line-height:1.4;box-shadow:0 8px 20px rgba(15,23,42,.25);z-index:2}
+.tooltip:after{content:'';position:absolute;left:18px;bottom:100%;border:5px solid transparent;border-bottom-color:var(--ink-900)}
+.note-locked{font-size:12.5px;color:#b45309;margin-top:6px}
+</style>
+</head>
+<body>
+
+<div style="position:absolute;left:60px;top:50px" class="card">
+<div class="label-tag">Create mode — Team selected</div>
+<div class="sec-h">Participant format</div>
+<div class="row">
+<div>
+<label class="label">Format</label>
+<div class="seg"><button>Solo</button><button class="on">Team</button></div>
+<div class="helper">Can't be changed after the tournament is created.</div>
+</div>
+<div>
+<label class="label">Team size</label>
+<div class="stepper"><button>−</button><span class="val mono">5</span><button>+</button></div>
+<div class="helper">Players per roster</div>
+</div>
+</div>
+<div class="row">
+<div>
+<label class="label">Capacity (teams)</label>
+<input placeholder="16" />
+<div class="helper">Number of team slots, empty = unlimited</div>
+</div>
+</div>
+</div>
+
+<div style="position:absolute;left:60px;top:420px" class="card">
+<div class="label-tag">Create mode — Solo selected</div>
+<div class="sec-h">Participant format</div>
+<div class="row">
+<div>
+<label class="label">Format</label>
+<div class="seg"><button class="on">Solo</button><button>Team</button></div>
+<div class="helper">Can't be changed after the tournament is created.</div>
+</div>
+</div>
+<div class="row">
+<div>
+<label class="label">Capacity (players)</label>
+<input placeholder="64" />
+<div class="helper">Number of player slots, empty = unlimited</div>
+</div>
+</div>
+</div>
+
+<div class="card" style="position:absolute;left:700px;top:50px;padding-bottom:60px">
+<div class="label-tag">Edit mode — format locked</div>
+<div class="sec-h">Participant format</div>
+<div class="row" style="gap:60px;margin-bottom:78px">
+<div>
+<label class="label">Format</label>
+<div class="tooltip-wrap">
+<span class="badge-lock"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3.5" y="7" width="9" height="6.5" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg>Team · 5v5</span>
+<div class="tooltip">Format is fixed after creation</div>
+</div>
+</div>
+<div>
+<label class="label">Team size</label>
+<div class="stepper disabled"><button disabled>−</button><span class="val mono">5</span><button disabled>+</button></div>
+<div class="note-locked">Locked — teams are already registered.</div>
+</div>
+</div>
+<div class="row">
+<div>
+<label class="label">Capacity (teams)</label>
+<input placeholder="16" value="16" />
+<div class="helper">Number of team slots, empty = unlimited</div>
+</div>
+</div>
+</div>
+
+<template id="__bundler_thumbnail"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#1d4ed8"/><text x="50" y="58" font-size="26" fill="#fff" text-anchor="middle" font-family="sans-serif">FM</text></svg></template>
+</body>
+</html>

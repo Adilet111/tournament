@@ -45,6 +45,10 @@ const normalizeT = (t, slugMap, cities) => ({
   // Age gates — used to localize age_too_low / age_too_high register errors.
   minAge: t.minAge ?? null,
   maxAge: t.maxAge ?? null,
+  // Rating gates — used by the team roster picker to flag out-of-range
+  // members before submit (the backend re-checks these regardless).
+  minRating: t.minRating ?? null,
+  maxRating: t.maxRating ?? null,
   distance: '',
   currency: t.currency || 'KZT',
 });

@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="design_doc_mode" content="canvas">
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Register Team Modal — Rally</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@500;600;700;800&family=Hanken+Grotesk:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+:root{--ink-900:#0f172a;--ink-700:#334155;--ink-500:#64748b;--ink-300:#cbd5e1;--ink-100:#e2e8f0;--ink-50:#f1f5f9;--accent:#1d4ed8;--accent-soft:#eff4ff}
+*{box-sizing:border-box}
+body{margin:0;font-family:'Hanken Grotesk',system-ui,sans-serif;color:var(--ink-900);background:#e7ebf1}
+.disp{font-family:'Schibsted Grotesk',system-ui,sans-serif}
+.mono{font-family:'Geist Mono',ui-monospace,monospace}
+.label-tag{position:absolute;top:-30px;left:0;font-size:13px;font-weight:600;color:var(--ink-500);font-family:'Schibsted Grotesk',sans-serif}
+.backdrop{width:560px;background:rgba(15,23,42,.5);display:flex;align-items:flex-start;justify-content:center;border-radius:20px;padding:40px 0}
+.modal{width:520px;background:#fff;border-radius:20px;border:1px solid var(--ink-100);box-shadow:0 20px 50px -12px rgba(15,23,42,.3);max-height:640px;display:flex;flex-direction:column;overflow:hidden}
+.mhead{padding:22px 26px 16px;border-bottom:1px solid var(--ink-50)}
+.mtitle{font-size:18px;font-weight:700}
+.msub{font-size:13px;color:var(--ink-500);margin-top:3px}
+.mbody{padding:18px 26px;overflow-y:auto;flex:1}
+.mfoot{padding:16px 26px 20px;border-top:1px solid var(--ink-50)}
+
+.team-row{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--ink-100);border-radius:14px;margin-bottom:10px;cursor:pointer}
+.team-row.selected{border-color:var(--accent);background:var(--accent-soft)}
+.radio{width:18px;height:18px;border-radius:999px;border:2px solid var(--ink-300);flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.radio.on{border-color:var(--accent)}
+.radio.on:after{content:'';width:9px;height:9px;border-radius:999px;background:var(--accent)}
+.logo{width:38px;height:38px;border-radius:10px;object-fit:cover;background:var(--ink-50)}
+.tname{font-size:14.5px;font-weight:600}
+.tmembers{font-size:12.5px;color:var(--ink-500)}
+
+.footer-actions{display:flex;justify-content:flex-end;gap:10px}
+.btn{border-radius:999px;padding:10px 18px;font-size:14px;font-weight:600;font-family:inherit;cursor:pointer;border:none}
+.btn-secondary{background:#fff;color:var(--ink-700);border:1px solid var(--ink-100)}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary[disabled]{background:var(--ink-100);color:var(--ink-500);cursor:not-allowed}
+
+.subhead{position:sticky;top:0;background:#fff;display:flex;justify-content:space-between;align-items:center;padding-bottom:12px;margin-bottom:10px;border-bottom:1px solid var(--ink-50)}
+.counter{font-size:13px;font-weight:600;color:var(--ink-500);padding:5px 12px;border-radius:999px;background:var(--ink-50)}
+.counter.full{color:var(--accent);background:var(--accent-soft)}
+.mem-row{display:flex;align-items:center;gap:12px;padding:11px 4px;border-bottom:1px solid var(--ink-50)}
+.mem-row:last-child{border-bottom:none}
+.checkbox{width:18px;height:18px;border-radius:6px;border:2px solid var(--ink-300);flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.checkbox.checked{border-color:var(--accent);background:var(--accent)}
+.checkbox.disabled{border-color:var(--ink-100);background:var(--ink-50)}
+.avatar{width:32px;height:32px;border-radius:999px;object-fit:cover;background:var(--ink-50);flex-shrink:0}
+.mem-name{font-size:14px;font-weight:600}
+.mem-name.dim{color:var(--ink-300)}
+.note{font-size:12px;font-weight:500;margin-top:2px}
+.note-red{color:#dc2626}
+.note-amber{color:#b45309}
+.mem-rating{margin-left:auto;font-size:13.5px;color:var(--ink-700)}
+.mem-rating.dash{color:var(--ink-300)}
+
+.freeze-note{font-size:12px;color:var(--ink-500);margin-top:12px;line-height:1.5;text-align:center}
+.error-banner{background:#fef2f2;border:1px solid #fecaca;color:#991b1b;font-size:13px;border-radius:12px;padding:12px 14px;margin-bottom:14px;line-height:1.45}
+</style>
+</head>
+<body>
+
+<div style="position:absolute;left:60px;top:60px" class="backdrop">
+<div class="label-tag">Step 1 — Choose team</div>
+<div class="modal">
+<div class="mhead">
+<div class="mtitle disp">Register for City Cup 5v5</div>
+<div class="msub">Choose which Football team you're registering</div>
+</div>
+<div class="mbody">
+<div class="team-row selected">
+<div class="radio on"></div>
+<img class="logo" src="https://images.unsplash.com/photo-1560272564-c83b66b1ad12?w=96&h=96&fit=crop" />
+<div><div class="tname">Astana Wolves</div><div class="tmembers">12 members</div></div>
+</div>
+<div class="team-row">
+<div class="radio"></div>
+<div class="logo" style="display:flex;align-items:center;justify-content:center;background:var(--accent-soft);color:var(--accent);font-weight:700;font-family:'Schibsted Grotesk',sans-serif;font-size:13px">SE</div>
+<div><div class="tname">Steppe Eagles</div><div class="tmembers">9 members</div></div>
+</div>
+</div>
+<div class="mfoot footer-actions">
+<button class="btn btn-secondary">Cancel</button>
+<button class="btn btn-primary">Next</button>
+</div>
+</div>
+</div>
+
+<div style="position:absolute;left:660px;top:60px" class="backdrop">
+<div class="label-tag">Step 2 — Pick your roster</div>
+<div class="modal">
+<div class="mhead">
+<div class="mtitle disp">Pick your roster</div>
+<div class="msub">City Cup 5v5 needs exactly 5 players from Astana Wolves</div>
+</div>
+<div class="mbody">
+<div class="subhead"><span style="font-size:13px;font-weight:600;color:var(--ink-700)">Astana Wolves</span><span class="counter full">5 of 5 selected</span></div>
+
+<div class="mem-row">
+<div class="checkbox checked"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2.4"><path d="M3 8.5l3 3 7-7" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+<img class="avatar" src="https://i.pravatar.cc/64?img=12" />
+<div class="mem-name">Daniyar T.</div>
+<span class="mem-rating mono">1580</span>
+</div>
+<div class="mem-row">
+<div class="checkbox checked"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2.4"><path d="M3 8.5l3 3 7-7" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+<img class="avatar" src="https://i.pravatar.cc/64?img=33" />
+<div class="mem-name">Madina K.</div>
+<span class="mem-rating mono">1420</span>
+</div>
+<div class="mem-row">
+<div class="checkbox disabled"></div>
+<div class="avatar"></div>
+<div><div class="mem-name dim">Yerlan B.</div><div class="note note-red">No Football profile yet</div></div>
+<span class="mem-rating dash mono">—</span>
+</div>
+<div class="mem-row">
+<div class="checkbox disabled"></div>
+<img class="avatar" src="https://i.pravatar.cc/64?img=47" style="opacity:.5" />
+<div><div class="mem-name dim">Saltanat Y.</div><div class="note note-amber">Rating 1900 is above the limit (max 1700)</div></div>
+<span class="mem-rating mono" style="color:var(--ink-300)">1900</span>
+</div>
+<div class="mem-row">
+<div class="checkbox disabled"></div>
+<img class="avatar" src="https://i.pravatar.cc/64?img=5" style="opacity:.5" />
+<div><div class="mem-name dim">Nurlan K.</div><div class="note note-red">Already registered in this tournament with Steppe Eagles</div></div>
+<span class="mem-rating mono" style="color:var(--ink-300)">1510</span>
+</div>
+<div class="mem-row">
+<div class="checkbox checked"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2.4"><path d="M3 8.5l3 3 7-7" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+<img class="avatar" src="https://i.pravatar.cc/64?img=15" />
+<div class="mem-name">Bekzat A.</div>
+<span class="mem-rating mono">1298</span>
+</div>
+<div class="mem-row">
+<div class="checkbox disabled"></div>
+<img class="avatar" src="https://i.pravatar.cc/64?img=21" style="opacity:.5" />
+<div><div class="mem-name dim">Ilyas M.</div><div class="note note-amber">Age outside allowed range</div></div>
+<span class="mem-rating mono" style="color:var(--ink-300)">1350</span>
+</div>
+<div class="mem-row">
+<div class="checkbox checked"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2.4"><path d="M3 8.5l3 3 7-7" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+<img class="avatar" src="https://i.pravatar.cc/64?img=9" />
+<div class="mem-name">Aigerim S.</div>
+<span class="mem-rating mono">1480</span>
+</div>
+</div>
+<div class="mfoot">
+<div class="footer-actions">
+<button class="btn btn-secondary">Back</button>
+<button class="btn btn-primary">Register roster</button>
+</div>
+<div class="freeze-note">The roster is frozen for this tournament — later team changes won't affect it.</div>
+</div>
+</div>
+</div>
+
+<div style="position:absolute;left:1260px;top:60px" class="backdrop">
+<div class="label-tag">Step 2 — Error banner variant</div>
+<div class="modal">
+<div class="mhead">
+<div class="mtitle disp">Pick your roster</div>
+<div class="msub">City Cup 5v5 needs exactly 5 players from Astana Wolves</div>
+</div>
+<div class="mbody">
+<div class="error-banner"><strong>Registration failed:</strong> Daniyar K., Miras T. don't meet the rating requirement.</div>
+<div class="subhead"><span style="font-size:13px;font-weight:600;color:var(--ink-700)">Astana Wolves</span><span class="counter">3 of 5 selected</span></div>
+<div class="mem-row">
+<div class="checkbox checked"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2.4"><path d="M3 8.5l3 3 7-7" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+<img class="avatar" src="https://i.pravatar.cc/64?img=12" />
+<div class="mem-name">Daniyar T.</div>
+<span class="mem-rating mono">1580</span>
+</div>
+<div class="mem-row">
+<div class="checkbox checked"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2.4"><path d="M3 8.5l3 3 7-7" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+<img class="avatar" src="https://i.pravatar.cc/64?img=33" />
+<div class="mem-name">Madina K.</div>
+<span class="mem-rating mono">1420</span>
+</div>
+<div class="mem-row">
+<div class="checkbox checked"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2.4"><path d="M3 8.5l3 3 7-7" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+<img class="avatar" src="https://i.pravatar.cc/64?img=15" />
+<div class="mem-name">Bekzat A.</div>
+<span class="mem-rating mono">1298</span>
+</div>
+</div>
+<div class="mfoot">
+<div class="footer-actions">
+<button class="btn btn-secondary">Back</button>
+<button class="btn btn-primary" disabled>Register roster</button>
+</div>
+<div class="freeze-note">The roster is frozen for this tournament — later team changes won't affect it.</div>
+</div>
+</div>
+</div>
+
+<template id="__bundler_thumbnail"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#1d4ed8"/><text x="50" y="58" font-size="24" fill="#fff" text-anchor="middle" font-family="sans-serif">RT</text></svg></template>
+</body>
+</html>

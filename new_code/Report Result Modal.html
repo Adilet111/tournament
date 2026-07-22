@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="design_doc_mode" content="canvas">
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Report Result Modal — Rally Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+:root{--ink-900:#0f172a;--ink-700:#334155;--ink-500:#64748b;--ink-300:#cbd5e1;--ink-100:#e2e8f0;--ink-50:#f1f5f9;--accent:#1d4ed8;--accent-soft:#eff4ff}
+*{box-sizing:border-box}
+body{margin:0;font-family:'Hanken Grotesk',system-ui,sans-serif;color:var(--ink-900);background:#e7ebf1}
+.mono{font-family:'Geist Mono',ui-monospace,monospace}
+.label-tag{position:absolute;top:-30px;left:0;font-size:13px;font-weight:600;color:var(--ink-500)}
+.backdrop{width:520px;background:rgba(15,23,42,.5);display:flex;align-items:center;justify-content:center;border-radius:20px;padding:36px 0}
+.modal{width:440px;background:#fff;border-radius:20px;border:1px solid var(--ink-100);box-shadow:0 20px 50px -12px rgba(15,23,42,.3);padding:24px}
+.mhead{font-size:16px;font-weight:700;margin-bottom:18px}
+.mhead span{color:var(--ink-500);font-weight:600}
+.pcard{border:1px solid var(--ink-100);border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;position:relative}
+.pcard:hover{border-color:var(--ink-300)}
+.pcard.winner{border-color:var(--accent);background:var(--accent-soft)}
+.pcard.static{cursor:default}
+.pcard.static:hover{border-color:var(--ink-100)}
+.pcard.winner.static:hover{border-color:var(--accent)}
+.avatar{width:36px;height:36px;border-radius:10px;background:var(--ink-50);color:var(--ink-700);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0}
+.pcard.winner .avatar{background:#fff;color:var(--accent)}
+.pname{font-size:14.5px;font-weight:600}
+.pseed{font-size:12px;color:var(--ink-500)}
+.win-pill{margin-left:auto;display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;background:var(--accent);color:#fff;padding:4px 11px;border-radius:999px}
+.loser-dim .pname,.loser-dim .pseed{color:var(--ink-300)}
+.vs{display:flex;align-items:center;gap:12px;margin:10px 0;color:var(--ink-300);font-size:12px;font-weight:700}
+.vs:before,.vs:after{content:'';flex:1;height:1px;background:var(--ink-50)}
+.score-row{display:flex;align-items:center;gap:8px;margin-top:8px;margin-bottom:14px}
+.score-input{width:56px;text-align:center;border:1px solid var(--ink-100);border-radius:10px;padding:7px 0;font-size:14px;font-family:'Geist Mono',ui-monospace,monospace;outline:none;color:var(--ink-900)}
+.score-input:focus{border-color:var(--accent)}
+.score-cap{font-size:12px;color:var(--ink-500)}
+.warn{display:flex;gap:8px;font-size:12px;color:var(--ink-500);line-height:1.5;background:var(--ink-50);border-radius:10px;padding:10px 12px;margin:16px 0}
+.warn svg{flex-shrink:0;margin-top:1px}
+.footer{display:flex;justify-content:flex-end;gap:10px}
+.btn{border-radius:999px;padding:10px 18px;font-size:13.5px;font-weight:600;font-family:inherit;cursor:pointer;border:none}
+.btn-secondary{background:#fff;color:var(--ink-700);border:1px solid var(--ink-100)}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary[disabled]{background:var(--ink-100);color:var(--ink-500);cursor:not-allowed}
+.done-badge{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:700;background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;padding:5px 13px;border-radius:999px;margin-bottom:16px}
+.score-final{margin-left:auto;font-size:18px;font-weight:600}
+.pcard.winner .score-final{color:var(--accent)}
+.loser-dim .score-final{color:var(--ink-300)}
+</style>
+</head>
+<body>
+
+<div style="position:absolute;left:60px;top:60px" class="backdrop">
+<div class="label-tag">Report result — winner picked</div>
+<div class="modal">
+<div class="mhead"><span>Quarterfinal 2 ·</span> Report result</div>
+
+<div class="pcard winner">
+<span class="avatar">AW</span>
+<div><div class="pname">Astana Wolves</div><div class="pseed">Seed 1</div></div>
+<span class="win-pill"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 4h12v3a6 6 0 0 1-12 0V4z"/><path d="M12 13v3M9 20h6" stroke-linecap="round"/></svg>Winner</span>
+</div>
+<div class="score-row"><input class="score-input" value="3" /><span class="score-cap">Scores are optional</span></div>
+
+<div class="vs">VS</div>
+
+<div class="pcard loser-dim">
+<span class="avatar">SE</span>
+<div><div class="pname">Steppe Eagles</div><div class="pseed">Seed 8</div></div>
+</div>
+<div class="score-row" style="margin-bottom:0"><input class="score-input" value="1" /></div>
+
+<div class="warn"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#64748b" stroke-width="1.6"><circle cx="8" cy="8" r="6.3"/><path d="M8 7.2v3.6M8 5v.1" stroke-linecap="round"/></svg><span>Results are final and can't be edited. The winner advances to the semifinal automatically.</span></div>
+
+<div class="footer">
+<button class="btn btn-secondary">Cancel</button>
+<button class="btn btn-primary">Confirm result</button>
+</div>
+</div>
+</div>
+
+<div style="position:absolute;left:640px;top:60px" class="backdrop">
+<div class="label-tag">No winner picked yet</div>
+<div class="modal">
+<div class="mhead"><span>Quarterfinal 2 ·</span> Report result</div>
+
+<div class="pcard">
+<span class="avatar">AW</span>
+<div><div class="pname">Astana Wolves</div><div class="pseed">Seed 1</div></div>
+</div>
+<div class="score-row"><input class="score-input" placeholder="–" /><span class="score-cap">Scores are optional</span></div>
+
+<div class="vs">VS</div>
+
+<div class="pcard">
+<span class="avatar">SE</span>
+<div><div class="pname">Steppe Eagles</div><div class="pseed">Seed 8</div></div>
+</div>
+<div class="score-row" style="margin-bottom:0"><input class="score-input" placeholder="–" /></div>
+
+<div class="warn"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#64748b" stroke-width="1.6"><circle cx="8" cy="8" r="6.3"/><path d="M8 7.2v3.6M8 5v.1" stroke-linecap="round"/></svg><span>Results are final and can't be edited. The winner advances to the semifinal automatically.</span></div>
+
+<div class="footer">
+<button class="btn btn-secondary">Cancel</button>
+<button class="btn btn-primary" disabled>Confirm result</button>
+</div>
+</div>
+</div>
+
+<div style="position:absolute;left:1220px;top:60px" class="backdrop">
+<div class="label-tag">Read-only — completed match</div>
+<div class="modal">
+<div class="mhead"><span>Quarterfinal 2 ·</span> Result</div>
+<div class="done-badge"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="#16a34a" stroke-width="2"><path d="M3 8.5l3 3 7-7" stroke-linecap="round" stroke-linejoin="round"/></svg>Completed · Aug 1, 16:05</div>
+
+<div class="pcard winner static">
+<span class="avatar">AW</span>
+<div><div class="pname">Astana Wolves</div><div class="pseed">Seed 1</div></div>
+<span class="win-pill" style="margin-left:auto;margin-right:12px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 4h12v3a6 6 0 0 1-12 0V4z"/><path d="M12 13v3M9 20h6" stroke-linecap="round"/></svg>Winner</span>
+<span class="score-final mono" style="margin-left:0">3</span>
+</div>
+
+<div class="vs">VS</div>
+
+<div class="pcard loser-dim static">
+<span class="avatar">SE</span>
+<div><div class="pname">Steppe Eagles</div><div class="pseed">Seed 8</div></div>
+<span class="score-final mono">1</span>
+</div>
+</div>
+</div>
+
+<template id="__bundler_thumbnail"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#1d4ed8"/><text x="50" y="58" font-size="26" fill="#fff" text-anchor="middle" font-family="sans-serif">RR</text></svg></template>
+</body>
+</html>

@@ -1,5 +1,5 @@
 /* Rally Admin — dashboard views. */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useCities, cityLabel } from '../lib/cities';
 import { useLang } from '../LangContext';
 import { apiErrorMessage } from '../i18n';
@@ -7,8 +7,10 @@ import {
   createTournament, listSports, createSport,
   listAdminTournaments, getTournament, updateTournament, deleteTournament,
   listRegistrations, addRegistration, updateRegistration, deleteRegistration, getAdminUser,
-  listRemovedRegistrations, markRemovedNotified,
+  listRemovedRegistrations, markRemovedNotified, listTeamRegistrations,
+  getBracket, generateBracket, deleteBracket, reportMatchResult, getUserStats,
 } from '../lib/api';
+import { roundLabel as roundLabelFor, winningSlot, buildFeedersByNext, nextPow2, placementInfo } from '../lib/bracketRounds';
 import { owned, REGISTRATIONS, SPONSORS, PROMOTIONS } from './adminData';
 import { Card, Btn, StatusDot, Avatar, Svg, Icon, fmt, Modal } from './AdminShell';
 
@@ -25,6 +27,28 @@ const STATUS_FILTERS = ['all', 'draft', 'open', 'closed', 'completed', 'cancelle
 
 const fmtDate = (iso, opts = { day: 'numeric', month: 'short', year: 'numeric' }) =>
   iso ? new Date(iso).toLocaleDateString('en-GB', opts) : '—';
+
+/* ---- shared bits for the participant-format block (create + edit forms;
+   DESIGN_PROMPTS.md §10, NEW.md §10) ---- */
+function LockIcon({ className }) {
+  return (
+    <svg viewBox="0 0 16 16" className={className} fill="none" stroke="currentColor" strokeWidth="1.7">
+      <rect x="3.5" y="7" width="9" height="6.5" rx="1.5" />
+      <path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" />
+    </svg>
+  );
+}
+
+function TeamSizeStepper({ value, onChange, min = 2, disabled = false }) {
+  const btn = 'grid h-[38px] w-[34px] place-items-center text-[16px] leading-none text-ink-700 hover:enabled:bg-ink-50 disabled:text-ink-300';
+  return (
+    <div className={'mt-1.5 inline-flex items-center overflow-hidden rounded-xl border border-ink-100 ' + (disabled ? 'bg-ink-50' : 'bg-white')}>
+      <button type="button" className={btn} disabled={disabled || value <= min} onClick={() => onChange(Math.max(min, value - 1))}>−</button>
+      <span className={'grid h-[38px] w-[44px] place-items-center border-x border-ink-100 font-mono text-[14.5px] ' + (disabled ? 'text-ink-300' : 'text-ink-900')}>{value}</span>
+      <button type="button" className={btn} disabled={disabled} onClick={() => onChange(value + 1)}>+</button>
+    </div>
+  );
+}
 
 /* ============================================================ OVERVIEW === */
 function StatCard({ label, value, sub, accent }) {
@@ -245,6 +269,413 @@ export function Competitions({ setView }) {
   );
 }
 
+/* ============================================================= BRACKET ===
+   Bracket panel, admin tournament page (POST/DELETE /tournaments/:id/bracket,
+   POST /matches/:id/result). See DESIGN_PROMPTS.md §12, NEW.md §14-17.
+   Embedded inside ManageTournament below. */
+function InfoIcon({ className }) {
+  return (
+    <svg viewBox="0 0 16 16" className={className} fill="none" stroke="currentColor" strokeWidth="1.6">
+      <circle cx="8" cy="8" r="6.5" />
+      <path d="M8 7.2v3.8M8 5.2v.1" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function MiniConnector() {
+  return <span className="pointer-events-none absolute -right-9 top-1/2 h-px w-9 bg-ink-100" />;
+}
+
+function MiniMatchCard({ match, entryById, feedersByNext, roundLabel, isFinal, reportLabel, onOpen }) {
+  if (match.status === 'walkover') {
+    const p = match.participants[0];
+    const entry = p && entryById.get(p.entryId);
+    return (
+      <div className="relative">
+        <div className="flex items-center gap-1.5 rounded-lg border border-ink-100 bg-ink-50 px-2.5 py-2 text-[12px]">
+          <span className="w-2.5 shrink-0 font-mono text-[10px] text-ink-300">{entry?.seed ?? ''}</span>
+          <span className="flex-1 truncate font-600 text-ink-900">{p?.displayName ?? entry?.displayName ?? '—'}</span>
+        </div>
+        {!isFinal && <MiniConnector />}
+      </div>
+    );
+  }
+
+  const winner = winningSlot(match);
+  const feeders = feedersByNext.get(match.id) || [];
+  const slots = [1, 2].map((slot) => {
+    const p = match.participants.find((pp) => pp.slot === slot);
+    if (p) {
+      const entry = entryById.get(p.entryId);
+      return { seed: entry?.seed, name: p.displayName ?? entry?.displayName ?? '—', score: p.score, isWinner: winner === slot, isLoser: winner != null && winner !== slot, placeholder: false };
+    }
+    const feeder = feeders[slot - 1];
+    const name = feeder ? `${roundLabel(feeder.round)} ${feeder.position + 1}` : '—';
+    return { seed: null, name, score: null, isWinner: false, isLoser: false, placeholder: true };
+  });
+
+  const canReport = match.status === 'pending' && match.participants.length === 2;
+  const isCompleted = match.status === 'completed';
+
+  return (
+    <div className="group relative">
+      <div
+        onClick={isCompleted ? onOpen : undefined}
+        className={'relative overflow-hidden rounded-lg border border-ink-100 bg-white ' + (isCompleted ? 'cursor-pointer transition-colors hover:border-ink-300' : '')}>
+        {slots.map((s, i) => (
+          <div key={i} className="flex items-center gap-1.5 border-b border-ink-50 px-2.5 py-1.5 text-[12px] last:border-b-0">
+            <span className="w-2.5 shrink-0 font-mono text-[10px] text-ink-300">{s.seed ?? ''}</span>
+            <span className={'flex-1 truncate ' + (s.placeholder ? 'italic text-ink-300' : s.isWinner ? 'font-600 text-ink-900' : s.isLoser ? 'text-ink-300' : 'text-ink-700')}>
+              {s.name}
+            </span>
+            <span className={'shrink-0 font-mono text-[11.5px] ' + (s.isWinner ? 'font-700 text-accent' : 'text-ink-300')}>
+              {s.score ?? (s.placeholder ? '' : '–')}
+            </span>
+          </div>
+        ))}
+        {canReport && (
+          <button
+            onClick={onOpen}
+            className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-full bg-accent px-2.5 py-1 text-[10.5px] font-700 text-white opacity-0 shadow-md transition-opacity group-hover:opacity-100">
+            {reportLabel}
+          </button>
+        )}
+      </div>
+      {!isFinal && <MiniConnector />}
+    </div>
+  );
+}
+
+function initials(name) {
+  return (name || '')
+    .split(/\s+/).filter(Boolean).map((w) => w[0]).slice(0, 2).join('').toUpperCase() || '?';
+}
+
+function TrophyBadgeIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M6 4h12v3a6 6 0 0 1-12 0V4z" />
+      <path d="M12 13v3M9 20h6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/* Clickable participant card for the interactive report form — clicking
+   marks it the winner (accent border/bg + "Winner" pill), per DESIGN_PROMPTS
+   §13. Score is entered in a separate input below (see ReportResultModal). */
+function ParticipantPickCard({ name, seedLabel, selected, winnerLabel, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={
+        'flex w-full items-center gap-3 rounded-2xl border p-3.5 text-left transition-colors ' +
+        (selected ? 'border-accent bg-[var(--accent-soft)]' : 'border-ink-100 hover:border-ink-300')
+      }>
+      <span className={'grid h-9 w-9 shrink-0 place-items-center rounded-[10px] font-mono text-[12px] font-700 ' + (selected ? 'bg-white text-accent' : 'bg-ink-50 text-ink-700')}>
+        {initials(name)}
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-[14.5px] font-600 text-ink-900">{name}</div>
+        <div className="text-[12px] text-ink-500">{seedLabel}</div>
+      </div>
+      {selected && (
+        <span className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-full bg-accent px-2.5 py-1 text-[11.5px] font-700 text-white">
+          <TrophyBadgeIcon /> {winnerLabel}
+        </span>
+      )}
+    </button>
+  );
+}
+
+/* Static participant card for the read-only completed-match view — same
+   visual language, no interaction, final score shown inline. */
+function ParticipantResultCard({ name, seedLabel, isWinner, score, winnerLabel }) {
+  return (
+    <div className={'flex w-full items-center gap-3 rounded-2xl border p-3.5 ' + (isWinner ? 'border-accent bg-[var(--accent-soft)]' : 'border-ink-100')}>
+      <span className={'grid h-9 w-9 shrink-0 place-items-center rounded-[10px] font-mono text-[12px] font-700 ' + (isWinner ? 'bg-white text-accent' : 'bg-ink-50 text-ink-300')}>
+        {initials(name)}
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className={'truncate text-[14.5px] font-600 ' + (isWinner ? 'text-ink-900' : 'text-ink-300')}>{name}</div>
+        <div className={'text-[12px] ' + (isWinner ? 'text-ink-500' : 'text-ink-300')}>{seedLabel}</div>
+      </div>
+      {isWinner && (
+        <span className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-full bg-accent px-2.5 py-1 text-[11.5px] font-700 text-white">
+          <TrophyBadgeIcon /> {winnerLabel}
+        </span>
+      )}
+      <span className={'shrink-0 font-mono text-[18px] font-600 ' + (isWinner ? 'text-accent' : 'ml-auto text-ink-300')}>
+        {score ?? '–'}
+      </span>
+    </div>
+  );
+}
+
+function VsDivider({ label }) {
+  return (
+    <div className="my-2.5 flex items-center gap-3 text-[12px] font-700 text-ink-300">
+      <span className="h-px flex-1 bg-ink-50" />
+      {label}
+      <span className="h-px flex-1 bg-ink-50" />
+    </div>
+  );
+}
+
+/* Report or review a match's result (~440px modal), per DESIGN_PROMPTS §13.
+   Interactive form for a pending match with both sides known (opened via
+   MiniMatchCard's hover "Report result" button); read-only display for an
+   already-completed match (opened by clicking the mini card itself) — results
+   are immutable once reported (NEW.md §17), so there's nothing to edit. */
+function ReportResultModal({ match, roundLabel, entryById, onClose, onReported }) {
+  const { t, lang } = useLang();
+  const bp = t.admin.bracket;
+  const isCompleted = match.status === 'completed';
+
+  const [winnerSlot, setWinnerSlot] = useState(null);
+  const [score1, setScore1] = useState('');
+  const [score2, setScore2] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+
+  const p1 = match.participants.find((p) => p.slot === 1);
+  const p2 = match.participants.find((p) => p.slot === 2);
+  const e1 = p1 && entryById.get(p1.entryId);
+  const e2 = p2 && entryById.get(p2.entryId);
+  const name1 = p1?.displayName ?? e1?.displayName ?? '—';
+  const name2 = p2?.displayName ?? e2?.displayName ?? '—';
+  const seedLabel1 = e1?.seed != null ? bp.seedFn(e1.seed) : '';
+  const seedLabel2 = e2?.seed != null ? bp.seedFn(e2.seed) : '';
+
+  const submit = async () => {
+    if (!winnerSlot || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await reportMatchResult(match.id, {
+        winnerSlot,
+        score1: score1 === '' ? undefined : Number(score1),
+        score2: score2 === '' ? undefined : Number(score2),
+      });
+      onReported();
+    } catch (e) {
+      setError(apiErrorMessage(e, t));
+      setBusy(false);
+    }
+  };
+
+  if (isCompleted) {
+    const winner = winningSlot(match);
+    const playedDate = match.playedAt
+      ? new Date(match.playedAt).toLocaleString(lang === 'ru' ? 'ru-RU' : 'en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+      : '';
+    return (
+      <Modal title={bp.resultTitleFn(roundLabel)} onClose={onClose} maxW="max-w-md">
+        {playedDate && (
+          <span className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[12px] font-700 text-emerald-700">
+            <svg viewBox="0 0 16 16" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 8.5l3 3 7-7" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            {bp.completedFn(playedDate)}
+          </span>
+        )}
+        <ParticipantResultCard name={name1} seedLabel={seedLabel1} isWinner={winner === 1} score={p1?.score} winnerLabel={bp.winnerPill} />
+        <VsDivider label={bp.vsWord} />
+        <ParticipantResultCard name={name2} seedLabel={seedLabel2} isWinner={winner === 2} score={p2?.score} winnerLabel={bp.winnerPill} />
+      </Modal>
+    );
+  }
+
+  return (
+    <Modal title={bp.reportTitleFn(roundLabel)} onClose={onClose} maxW="max-w-md">
+      <ParticipantPickCard name={name1} seedLabel={seedLabel1} selected={winnerSlot === 1} winnerLabel={bp.winnerPill} onClick={() => setWinnerSlot(1)} />
+      <div className="mt-2 flex items-center gap-2.5">
+        <input type="number" value={score1} onChange={(e) => setScore1(e.target.value)} placeholder="–"
+          className="w-14 shrink-0 rounded-[10px] border border-ink-100 py-1.5 text-center font-mono text-[14px] text-ink-900 outline-none focus:border-accent" />
+        <span className="text-[12px] text-ink-500">{bp.scoresOptional}</span>
+      </div>
+
+      <VsDivider label={bp.vsWord} />
+
+      <ParticipantPickCard name={name2} seedLabel={seedLabel2} selected={winnerSlot === 2} winnerLabel={bp.winnerPill} onClick={() => setWinnerSlot(2)} />
+      <div className="mt-2">
+        <input type="number" value={score2} onChange={(e) => setScore2(e.target.value)} placeholder="–"
+          className="w-14 shrink-0 rounded-[10px] border border-ink-100 py-1.5 text-center font-mono text-[14px] text-ink-900 outline-none focus:border-accent" />
+      </div>
+
+      <div className="mt-4 flex items-start gap-2 rounded-xl bg-ink-50 px-3.5 py-2.5 text-[12px] leading-relaxed text-ink-500">
+        <InfoIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+        {bp.finalNote}
+      </div>
+
+      {error && <p className="mt-3 text-[13px] text-red-600">{error}</p>}
+
+      <div className="mt-5 flex justify-end gap-2.5">
+        <Btn variant="outline" size="sm" onClick={onClose}>{t.admin.common.cancel}</Btn>
+        <Btn variant="primary" size="sm" disabled={!winnerSlot || busy} onClick={submit}>
+          {busy ? bp.reporting : bp.confirmResult}
+        </Btn>
+      </div>
+    </Modal>
+  );
+}
+
+/* Bracket panel embedded in ManageTournament. Pre-generation it explains the
+   flow and (once closed) previews the size/rounds/byes the current
+   registration count would produce; once generated it shows the stats chips,
+   a compact bracket preview, and delete (locked once any match is played). */
+function BracketPanel({ tournamentId, status, registered, isTeam, t }) {
+  const bp = t.admin.bracket;
+  const bt = t.bracket;
+  const [state, setState] = useState('loading'); // loading | ready | error
+  const [bracket, setBracket] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  const [reloadKey, setReloadKey] = useState(0);
+  const [reportMatch, setReportMatch] = useState(null); // { match, roundLabel } | null
+
+  useEffect(() => {
+    let cancelled = false;
+    getBracket(tournamentId)
+      .then((b) => { if (!cancelled) { setBracket(b); setState('ready'); } })
+      .catch((e) => { if (!cancelled) { setError(apiErrorMessage(e, t)); setState('error'); } });
+    return () => { cancelled = true; };
+  }, [tournamentId, reloadKey, t]);
+
+  const reload = () => setReloadKey((k) => k + 1);
+
+  const rounds = useMemo(() => [...(bracket?.rounds || [])].sort((a, b) => a.round - b.round), [bracket]);
+  const entries = useMemo(() => bracket?.entries || [], [bracket]);
+  const entryById = useMemo(() => new Map(entries.map((e) => [e.id, e])), [entries]);
+  const totalRounds = rounds.length;
+  const label = useCallback((r) => roundLabelFor(r, totalRounds, bt), [totalRounds, bt]);
+  const feedersByNext = useMemo(() => buildFeedersByNext(rounds), [rounds]);
+  const hasCompletedMatch = rounds.some((r) => r.matches.some((m) => m.status === 'completed'));
+  const firstRoundCount = rounds[0]?.matches.length || 0;
+  const bracketSize = firstRoundCount * 2;
+  const walkovers = rounds.reduce((sum, r) => sum + r.matches.filter((m) => m.status === 'walkover').length, 0);
+
+  const generate = async () => {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    try { await generateBracket(tournamentId); reload(); }
+    catch (e) { setError(apiErrorMessage(e, t)); }
+    finally { setBusy(false); }
+  };
+
+  const removeBracket = async () => {
+    if (busy || hasCompletedMatch) return;
+    if (!window.confirm(bp.deleteConfirm)) return;
+    setBusy(true);
+    setError(null);
+    try { await deleteBracket(tournamentId); reload(); }
+    catch (e) { setError(apiErrorMessage(e, t)); }
+    finally { setBusy(false); }
+  };
+
+  const previewSize = nextPow2(Math.max(registered, 2));
+  const previewRounds = Math.log2(previewSize);
+  const previewByes = previewSize - registered;
+
+  return (
+    <section className="border-t border-ink-100 pt-5">
+      <div className="flex items-center justify-between">
+        <span className="font-mono text-[11px] uppercase tracking-wide text-ink-300">{bp.title}</span>
+        {bracket?.generated && (
+          <div className="group relative">
+            <button
+              disabled={busy || hasCompletedMatch}
+              onClick={removeBracket}
+              className="text-[13px] font-600 text-red-600 hover:underline disabled:cursor-not-allowed disabled:text-ink-300 disabled:no-underline">
+              {bp.deleteBracket}
+            </button>
+            {hasCompletedMatch && (
+              <div className="pointer-events-none absolute right-0 top-full z-10 mt-2 hidden w-[190px] rounded-xl bg-ink-900 px-3 py-2 text-[12px] font-500 leading-snug text-white shadow-lg group-hover:block">
+                {bp.deleteLockedTooltip}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {state === 'loading' && <p className="mt-2 text-[13px] text-ink-400">{t.admin.common.loading}</p>}
+      {state === 'error' && (
+        <div className="mt-2 text-[13px] text-red-600">
+          {bp.loadFailed}{' '}
+          <button onClick={reload} className="font-600 underline">{bp.retry}</button>
+        </div>
+      )}
+
+      {state === 'ready' && !bracket.generated && (
+        <div className="mt-2">
+          <p className="max-w-md text-[13.5px] leading-relaxed text-ink-500">{bp.explanation}</p>
+          {status === 'closed' && registered >= 2 && (
+            <div className="mt-3 max-w-md rounded-xl border border-accent/25 bg-[var(--accent-soft)] px-3.5 py-2.5 text-[13px] text-ink-700">
+              {bp.summaryFn(registered, isTeam, previewSize, previewRounds, previewByes)}
+            </div>
+          )}
+          <div className="mt-3 flex flex-wrap items-center gap-2.5">
+            <Btn variant="primary" size="sm" disabled={status !== 'closed' || registered < 2 || busy} onClick={generate}>
+              {busy ? bp.generating : bp.generate}
+            </Btn>
+            {status !== 'closed' && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-ink-50 px-3 py-1.5 text-[12px] font-600 text-ink-500">
+                <LockIcon className="h-2.5 w-2.5" /> {bp.requiresClosed}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {state === 'ready' && bracket.generated && (
+        <div className="mt-3">
+          <div className="flex flex-wrap gap-2">
+            <span className="rounded-full bg-ink-50 px-3 py-1.5 text-[12px] font-600 text-ink-700">{bp.statBracketSize} <b className="font-mono font-600 text-ink-900">{bracketSize}</b></span>
+            <span className="rounded-full bg-ink-50 px-3 py-1.5 text-[12px] font-600 text-ink-700">{bp.statRounds} <b className="font-mono font-600 text-ink-900">{totalRounds}</b></span>
+            <span className="rounded-full bg-ink-50 px-3 py-1.5 text-[12px] font-600 text-ink-700">{bp.statEntries} <b className="font-mono font-600 text-ink-900">{entries.length}</b></span>
+            <span className="rounded-full bg-ink-50 px-3 py-1.5 text-[12px] font-600 text-ink-700">{bp.statWalkovers} <b className="font-mono font-600 text-ink-900">{walkovers}</b></span>
+          </div>
+
+          <div className="mt-4 overflow-x-auto pb-2">
+            <div className="flex gap-9" style={{ minHeight: firstRoundCount * 72 }}>
+              {rounds.map((round) => (
+                <div key={round.round} className="flex w-[190px] shrink-0 flex-col">
+                  <div className="mb-2 font-mono text-[10.5px] font-700 uppercase tracking-wide text-ink-500">{label(round.round)}</div>
+                  <div className="flex flex-1 flex-col justify-around gap-2">
+                    {round.matches.map((m) => (
+                      <MiniMatchCard
+                        key={m.id}
+                        match={m}
+                        entryById={entryById}
+                        feedersByNext={feedersByNext}
+                        roundLabel={label}
+                        isFinal={!m.nextMatchId}
+                        reportLabel={bp.reportResult}
+                        onOpen={() => setReportMatch({ match: m, roundLabel: label(m.round) })}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {error && <p className="mt-2 text-[13px] text-red-600">{error}</p>}
+
+      {reportMatch && (
+        <ReportResultModal
+          match={reportMatch.match}
+          roundLabel={reportMatch.roundLabel}
+          entryById={entryById}
+          onClose={() => setReportMatch(null)}
+          onReported={() => { setReportMatch(null); reload(); }}
+        />
+      )}
+    </section>
+  );
+}
+
 /* ---- manage one tournament: edit fields, move status, delete ---- */
 function ManageTournament({ tournament, sportName, onClose, onChanged, onOpenQueue }) {
   const { t, lang } = useLang();
@@ -255,6 +686,7 @@ function ManageTournament({ tournament, sportName, onClose, onChanged, onOpenQue
   const [form, setForm] = useState({
     title: tournament.title ?? '',
     capacity: tournament.capacity ?? '',
+    teamSize: tournament.teamSize ?? 2,
     entryFee: tournament.entryFee ?? '',
     minRating: tournament.minRating ?? '',
     maxRating: tournament.maxRating ?? '',
@@ -283,6 +715,11 @@ function ManageTournament({ tournament, sportName, onClose, onChanged, onOpenQue
   // Prefer the backend's freePlaces; fall back to capacity − registered.
   const freePlaces = detail.freePlaces ?? (detail.capacity != null ? Math.max(0, detail.capacity - registered) : null);
   const nextStatuses = ALLOWED_TRANSITIONS[status] || [];
+  // participantType is immutable; teamSize is patchable only until a team
+  // registers — capacity/occupiedPlaces count teams on team tournaments, so
+  // `registered > 0` here means "teams already registered" (NEW.md §10).
+  const isTeam = detail.participantType === 'team';
+  const teamSizeLocked = registered > 0;
 
   const num = (v) => (v === '' || v == null ? null : Number(v));
 
@@ -296,6 +733,7 @@ function ManageTournament({ tournament, sportName, onClose, onChanged, onOpenQue
     const patch = {};
     if (form.title.trim() !== (detail.title ?? '')) patch.title = form.title.trim();
     if (num(form.capacity) !== (detail.capacity ?? null)) patch.capacity = num(form.capacity);
+    if (isTeam && !teamSizeLocked && Number(form.teamSize) !== (detail.teamSize ?? null)) patch.teamSize = Number(form.teamSize);
     const fee = form.entryFee === '' ? 0 : Number(form.entryFee);
     if (fee !== (detail.entryFee ?? 0)) patch.entryFee = fee;
     if (num(form.minRating) !== (detail.minRating ?? null)) patch.minRating = num(form.minRating);
@@ -383,10 +821,37 @@ function ManageTournament({ tournament, sportName, onClose, onChanged, onOpenQue
             <span className={lbl}>{m.titleLbl}</span>
             <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className={field} />
           </div>
+
+          {/* participant format — locked (immutable after creation, NEW.md §10) */}
+          <div className="flex flex-wrap items-start gap-8">
+            <div>
+              <span className={lbl}>{m.formatLbl}</span>
+              <div className="group relative mt-1.5 inline-block">
+                <span className="inline-flex items-center gap-2 rounded-full border border-accent/30 bg-[var(--accent-soft)] px-4 py-2 text-[13.5px] font-700 text-accent">
+                  <LockIcon className="h-3.5 w-3.5" />
+                  {isTeam ? t.card.teamBadgeFn(detail.teamSize) : t.admin.create.formatSolo}
+                </span>
+                <div className="pointer-events-none absolute left-0 top-full z-10 mt-2 hidden w-[140px] rounded-xl bg-ink-900 px-3 py-2 text-[12px] font-500 leading-snug text-white shadow-lg group-hover:block">
+                  {m.formatLockedTooltip}
+                </div>
+              </div>
+            </div>
+            {isTeam && (
+              <div>
+                <span className={lbl}>{m.teamSizeLbl}</span>
+                <TeamSizeStepper value={Number(form.teamSize)} min={2} disabled={teamSizeLocked} onChange={(v) => setForm({ ...form, teamSize: v })} />
+                <p className={'mt-1.5 max-w-[160px] text-[12.5px] leading-snug ' + (teamSizeLocked ? 'text-amber-700' : 'text-ink-500')}>
+                  {teamSizeLocked ? m.teamSizeLockedNote : m.teamSizeHelper}
+                </p>
+              </div>
+            )}
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <span className={lbl}>{m.capacityLbl}</span>
+              <span className={lbl}>{isTeam ? m.capacityTeamsLbl : m.capacityPlayersLbl}</span>
               <input type="number" value={form.capacity} onChange={(e) => setForm({ ...form, capacity: e.target.value })} placeholder="∞" className={field} />
+              <p className="mt-1.5 text-[12.5px] leading-snug text-ink-500">{isTeam ? m.capacityTeamsHelper : m.capacityPlayersHelper}</p>
             </div>
             <div>
               <span className={lbl}>{m.entryFeeLbl}</span>
@@ -449,6 +914,8 @@ function ManageTournament({ tournament, sportName, onClose, onChanged, onOpenQue
           </div>
         )}
 
+        <BracketPanel tournamentId={tournament.id} status={status} registered={registered} isTeam={isTeam} t={t} />
+
         {/* danger zone */}
         <section className="border-t border-ink-100 pt-5">
           <span className={lbl}>{m.dangerZone}</span>
@@ -469,10 +936,109 @@ function ManageTournament({ tournament, sportName, onClose, onChanged, onOpenQue
   );
 }
 
+/* ---- team registrations table (team tournaments only) — GET
+   /tournaments/:id/team-registrations (NEW.md §13, DESIGN_PROMPTS.md §11).
+   Read-only: rosters are frozen snapshots, there's no admin mutation on this
+   endpoint (captains manage it via register-team/withdraw-team). ---- */
+function TeamAvatar({ name }) {
+  const initials = (name || '')
+    .split(/\s+/).filter(Boolean).map((w) => w[0]).slice(0, 2).join('').toUpperCase() || '?';
+  return (
+    <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-[var(--accent-soft)] text-[11px] font-700 text-accent">
+      {initials}
+    </span>
+  );
+}
+
+function TeamRegistrationRow({ row, rg, expanded, onToggle }) {
+  return (
+    <div className="border-b border-ink-50 last:border-b-0">
+      <button
+        onClick={onToggle}
+        className="grid w-full grid-cols-1 gap-2 px-6 py-3.5 text-left md:grid-cols-[1.6fr_130px_130px_130px] md:items-center md:gap-4 hover:bg-ink-50/60">
+        <div className="flex items-center gap-2.5 text-[13.5px] font-600 text-ink-900">
+          <TeamAvatar name={row.teamName} />
+          {row.teamName}
+        </div>
+        <div><StatusDot status={row.status} /></div>
+        <div className="font-mono text-[12.5px] text-ink-400">{fmtDate(row.registeredAt)}</div>
+        <div className="flex items-center gap-1.5 text-[13px] text-ink-700">
+          {rg.rosterCountFn(row.roster?.length ?? 0)}
+          <svg viewBox="0 0 16 16" className={'h-3 w-3 shrink-0 text-ink-500 transition-transform ' + (expanded ? 'rotate-180' : '')} fill="none" stroke="currentColor" strokeWidth="1.8">
+            <path d="M4 6l4 4 4-4" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </div>
+      </button>
+      {expanded && (
+        <div className="bg-[#f8fafc] px-6 py-4 pl-14">
+          <p className="mb-2.5 text-[11.5px] italic text-ink-500">{rg.rosterCaption}</p>
+          <div className="space-y-1.5">
+            {(row.roster ?? []).map((p, i) => (
+              <div key={p.userId} className="flex items-baseline gap-2.5">
+                <span className="w-3.5 shrink-0 font-mono text-[11px] text-ink-300">{i + 1}</span>
+                <span className="text-[13px] font-600 text-ink-900">{p.name}</span>
+                <span className="font-mono text-[12px] text-ink-500">{p.email}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TeamRegistrationsTable({ tournamentId, statusFilter, reloadKey, t }) {
+  const rg = t.admin.registrations;
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [expandedId, setExpandedId] = useState(null);
+
+  useEffect(() => {
+    if (!tournamentId) return;
+    let cancelled = false;
+    listTeamRegistrations(tournamentId, statusFilter === 'all' ? undefined : statusFilter)
+      .then((rs) => { if (!cancelled) { setRows(Array.isArray(rs) ? rs : []); setError(null); } })
+      .catch((e) => { if (!cancelled) setError(apiErrorMessage(e, t)); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [tournamentId, statusFilter, reloadKey, t]);
+
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-wrap gap-3 text-[13.5px]">
+        <span className="rounded-full bg-ink-50 px-3 py-1.5 text-ink-700"><b className="font-700 text-ink-900">{rows.length}</b> {rg.teamWordFn(rows.length)}</span>
+      </div>
+
+      {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-[13.5px] text-red-700">{error}</div>}
+
+      <Card className="overflow-hidden">
+        <div className="hidden grid-cols-[1.6fr_130px_130px_130px] gap-4 border-b border-ink-100 px-6 py-3 font-mono text-[11px] uppercase tracking-wide text-ink-400 md:grid">
+          <span>{rg.thTeam}</span><span>{rg.thStatus}</span><span>{rg.thRegisteredDate}</span><span>{rg.thRoster}</span>
+        </div>
+        <div>
+          {loading && <div className="px-6 py-5 text-[14px] text-ink-400">{t.admin.common.loading}</div>}
+          {!loading && rows.length === 0 && <div className="px-6 py-5 text-[14px] text-ink-400">{rg.emptyTeams}</div>}
+          {rows.map((row) => (
+            <TeamRegistrationRow
+              key={row.registrationId}
+              row={row}
+              rg={rg}
+              expanded={expandedId === row.registrationId}
+              onToggle={() => setExpandedId((id) => (id === row.registrationId ? null : row.registrationId))}
+            />
+          ))}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
 /* ======================================================= REGISTRATIONS ===
    Pick a tournament, then view/manage its participants via
    GET/POST/PATCH/DELETE /tournaments/:id/registrations. Clicking a row opens
-   the full user record (GET /admin/users/:id). */
+   the full user record (GET /admin/users/:id). For team tournaments the
+   solo table is swapped for the read-only TeamRegistrationsTable above. */
 export function Registrations() {
   const { t } = useLang();
   const rg = t.admin.registrations;
@@ -500,19 +1066,24 @@ export function Registrations() {
       .catch((e) => { setError(apiErrorMessage(e, t)); setLoading(false); });
   }, [t]);
 
-  // Registrations for the selected tournament.
+  const selected = tournaments.find((tr) => tr.id === selId);
+  // Team tournaments have no per-player registrations — captains register
+  // a roster via register-team, admins inspect it read-only (NEW.md §13).
+  const isTeamTournament = selected?.participantType === 'team';
+
+  // Registrations for the selected tournament (solo tournaments only — team
+  // tournaments render TeamRegistrationsTable instead, below).
   useEffect(() => {
-    if (!selId) return;
+    if (!selId || isTeamTournament) return;
     let cancelled = false;
     listRegistrations(selId, statusFilter === 'all' ? undefined : statusFilter)
       .then((rs) => { if (!cancelled) { setRows(Array.isArray(rs) ? rs : []); setError(null); } })
       .catch((e) => { if (!cancelled) setError(apiErrorMessage(e, t)); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [selId, statusFilter, reloadKey, t]);
+  }, [selId, isTeamTournament, statusFilter, reloadKey, t]);
 
   const reload = () => setReloadKey((k) => k + 1);
-  const selected = tournaments.find((tr) => tr.id === selId);
 
   const mutate = async (userId, fn) => {
     setRowBusy(userId);
@@ -547,57 +1118,66 @@ export function Registrations() {
             ))}
           </div>
         </div>
-        <Btn variant="dark" size="md" disabled={!selId} onClick={() => setAddOpen(true)}><Svg d={Icon.plus} className="h-4 w-4" /> {rg.addParticipant}</Btn>
+        {!isTeamTournament && (
+          <Btn variant="dark" size="md" disabled={!selId} onClick={() => setAddOpen(true)}><Svg d={Icon.plus} className="h-4 w-4" /> {rg.addParticipant}</Btn>
+        )}
       </div>
 
-      <div className="flex flex-wrap gap-3 text-[13.5px]">
-        <span className="rounded-full bg-ink-50 px-3 py-1.5 text-ink-700"><b className="font-700 text-ink-900">{rows.length}</b> {rg.regWordFn(rows.length)}</span>
-        <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-emerald-700"><b className="font-700">{registeredCount}</b> {rg.activeWord}</span>
-        {selected?.capacity != null && <span className="rounded-full bg-ink-50 px-3 py-1.5 text-ink-700">{rg.capacityWord} <b className="font-700 text-ink-900">{selected.capacity}</b></span>}
-        {selected?.freePlaces != null && <span className="rounded-full bg-ink-50 px-3 py-1.5 text-ink-700">{rg.freePlacesWord} <b className="font-700 text-ink-900">{selected.freePlaces}</b></span>}
-      </div>
+      {isTeamTournament ? (
+        <TeamRegistrationsTable tournamentId={selId} statusFilter={statusFilter} reloadKey={reloadKey} t={t} />
+      ) : (
+        <>
+          <div className="flex flex-wrap gap-3 text-[13.5px]">
+            <span className="rounded-full bg-ink-50 px-3 py-1.5 text-ink-700"><b className="font-700 text-ink-900">{rows.length}</b> {rg.regWordFn(rows.length)}</span>
+            <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-emerald-700"><b className="font-700">{registeredCount}</b> {rg.activeWord}</span>
+            {selected?.capacity != null && <span className="rounded-full bg-ink-50 px-3 py-1.5 text-ink-700">{rg.capacityWord} <b className="font-700 text-ink-900">{selected.capacity}</b></span>}
+            {selected?.freePlaces != null && <span className="rounded-full bg-ink-50 px-3 py-1.5 text-ink-700">{rg.freePlacesWord} <b className="font-700 text-ink-900">{selected.freePlaces}</b></span>}
+          </div>
 
-      {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-[13.5px] text-red-700">{error}</div>}
+          {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-[13.5px] text-red-700">{error}</div>}
 
-      <Card className="overflow-hidden">
-        <div className="hidden grid-cols-[2fr_1fr_1fr_1fr_auto] gap-4 border-b border-ink-100 px-6 py-3 font-mono text-[11px] uppercase tracking-wide text-ink-400 md:grid">
-          <span>{rg.thAthlete}</span><span>{t.admin.common.rating}</span><span>{rg.thStatus}</span><span>{rg.thWhen}</span><span></span>
-        </div>
-        <div className="divide-y divide-ink-100">
-          {loading && <div className="px-6 py-5 text-[14px] text-ink-400">{t.admin.common.loading}</div>}
-          {!loading && rows.length === 0 && <div className="px-6 py-5 text-[14px] text-ink-400">{rg.empty}</div>}
-          {rows.map((r) => {
-            const st = r.status ?? 'registered';
-            const busy = rowBusy === r.userId;
-            return (
-              <div key={r.userId} className="grid grid-cols-1 gap-2 px-6 py-3.5 md:grid-cols-[2fr_1fr_1fr_1fr_auto] md:items-center md:gap-4">
-                <button onClick={() => setViewUser(r.userId)} className="flex items-center gap-3 text-left">
-                  <Avatar name={r.name || r.email || '?'} />
-                  <div className="min-w-0">
-                    <div className="text-[14.5px] font-600 text-ink-900 hover:text-accent">{r.name || '—'}</div>
-                    <div className="truncate text-[12.5px] text-ink-500">{r.email}</div>
+          <Card className="overflow-hidden">
+            <div className="hidden grid-cols-[2fr_1fr_1fr_1fr_auto] gap-4 border-b border-ink-100 px-6 py-3 font-mono text-[11px] uppercase tracking-wide text-ink-400 md:grid">
+              <span>{rg.thAthlete}</span><span>{t.admin.common.rating}</span><span>{rg.thStatus}</span><span>{rg.thWhen}</span><span></span>
+            </div>
+            <div className="divide-y divide-ink-100">
+              {loading && <div className="px-6 py-5 text-[14px] text-ink-400">{t.admin.common.loading}</div>}
+              {!loading && rows.length === 0 && <div className="px-6 py-5 text-[14px] text-ink-400">{rg.empty}</div>}
+              {rows.map((r) => {
+                const st = r.status ?? 'registered';
+                const busy = rowBusy === r.userId;
+                return (
+                  <div key={r.userId} className="grid grid-cols-1 gap-2 px-6 py-3.5 md:grid-cols-[2fr_1fr_1fr_1fr_auto] md:items-center md:gap-4">
+                    <button onClick={() => setViewUser(r.userId)} className="flex items-center gap-3 text-left">
+                      <Avatar name={r.name || r.email || '?'} />
+                      <div className="min-w-0">
+                        <div className="text-[14.5px] font-600 text-ink-900 hover:text-accent">{r.name || '—'}</div>
+                        <div className="truncate text-[12.5px] text-ink-500">{r.email}</div>
+                      </div>
+                    </button>
+                    <div className="font-mono text-[13.5px] text-ink-700">{r.rating != null ? r.rating : '—'}</div>
+                    <div><StatusDot status={st} /></div>
+                    <div className="font-mono text-[12.5px] text-ink-400">{fmtDate(r.registeredAt)}</div>
+                    <div className="flex justify-end gap-2">
+                      {st === 'registered'
+                        ? <Btn variant="outline" size="sm" disabled={busy} onClick={() => withdraw(r.userId)}>{rg.withdraw}</Btn>
+                        : <Btn variant="outline" size="sm" disabled={busy} onClick={() => reinstate(r.userId)}>{rg.reinstate}</Btn>}
+                      <button title={rg.removeTitle} disabled={busy} onClick={() => remove(r.userId)}
+                        className="grid h-9 w-9 place-items-center rounded-full border border-ink-100 text-ink-400 hover:border-red-200 hover:bg-red-50 hover:text-red-500 disabled:opacity-40">✕</button>
+                    </div>
                   </div>
-                </button>
-                <div className="font-mono text-[13.5px] text-ink-700">{r.rating != null ? r.rating : '—'}</div>
-                <div><StatusDot status={st} /></div>
-                <div className="font-mono text-[12.5px] text-ink-400">{fmtDate(r.registeredAt)}</div>
-                <div className="flex justify-end gap-2">
-                  {st === 'registered'
-                    ? <Btn variant="outline" size="sm" disabled={busy} onClick={() => withdraw(r.userId)}>{rg.withdraw}</Btn>
-                    : <Btn variant="outline" size="sm" disabled={busy} onClick={() => reinstate(r.userId)}>{rg.reinstate}</Btn>}
-                  <button title={rg.removeTitle} disabled={busy} onClick={() => remove(r.userId)}
-                    className="grid h-9 w-9 place-items-center rounded-full border border-ink-100 text-ink-400 hover:border-red-200 hover:bg-red-50 hover:text-red-500 disabled:opacity-40">✕</button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </Card>
+                );
+              })}
+            </div>
+          </Card>
 
-      {addOpen && (
-        <AddParticipant tournamentId={selId} tournamentTitle={selected?.title}
-          onClose={() => setAddOpen(false)} onAdded={() => { setAddOpen(false); reload(); }} />
+          {addOpen && (
+            <AddParticipant tournamentId={selId} tournamentTitle={selected?.title}
+              onClose={() => setAddOpen(false)} onAdded={() => { setAddOpen(false); reload(); }} />
+          )}
+        </>
       )}
+
       {viewUser && <UserDetail userId={viewUser} onClose={() => setViewUser(null)} />}
     </div>
   );
@@ -640,9 +1220,156 @@ function AddParticipant({ tournamentId, tournamentTitle, onClose, onAdded }) {
 }
 
 /* ---- full user record: account, all sport profiles, tournament history ---- */
+/* ---- Statistics tab, admin user-detail modal (GET /users/:id/stats). See
+   DESIGN_PROMPTS.md §14 — a denser twin of the public "My statistics" page
+   (components/stats.jsx), reusing its record/win-rate formatting (t.stats)
+   and the shared placementInfo() helper so wording matches everywhere.
+   Note: the tournament-history "Format" chip can only say "Team"/"Solo" —
+   unlike components/stats.jsx it has no teamSize to render "Team · 5v5",
+   since GET /users/:id/stats doesn't return one (NEW.md §18). */
+function MiniStatTile({ value, label, sub, featured }) {
+  return (
+    <div className={'rounded-xl border p-2.5 ' + (featured ? 'border-accent/30 bg-[var(--accent-soft)]' : 'border-ink-100 bg-white')}>
+      <div className={'font-mono text-[20px] font-600 leading-none ' + (featured ? 'text-accent' : 'text-ink-900')}>{value}</div>
+      <div className={'mt-1 text-[10.5px] font-700 uppercase tracking-wide ' + (featured ? 'text-accent' : 'text-ink-500')}>{label}</div>
+      {sub && <div className="mt-0.5 font-mono text-[11px] text-ink-500">{sub}</div>}
+    </div>
+  );
+}
+
+function AdminPlacementBadge({ rank, t }) {
+  const info = placementInfo(rank, t.admin.userStats, t.bracket);
+  if (!info) return <span className="text-[11px] text-ink-300">—</span>;
+  const cls =
+    info.tone === 'gold' ? 'bg-amber-100 text-amber-800'
+    : info.tone === 'silver' ? 'border border-ink-100 bg-ink-50 text-ink-700'
+    : 'text-ink-500';
+  return <span className={'inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-700 ' + cls}>{info.label}</span>;
+}
+
+function AdminSportRow({ row, t }) {
+  const st = t.admin.userStats;
+  const label = t.data.sports[row.sportSlug] ?? row.sportName;
+  const loss = Math.max(0, (row.matchesPlayed ?? 0) - (row.matchesWon ?? 0));
+  return (
+    <div className="grid grid-cols-[1.3fr_70px_100px_50px_70px_60px_70px_60px] items-center gap-2.5 border-t border-ink-50 px-3.5 py-2.5 text-[13px] first:border-t-0 hover:bg-ink-50/60">
+      <span className="truncate text-[13.5px] font-600 text-ink-900">{label}</span>
+      <span className="justify-self-end rounded-full bg-[var(--accent-soft)] px-2.5 py-0.5 font-mono text-[12px] font-600 text-accent">{row.rating ?? '—'}</span>
+      <span className="justify-self-end font-mono text-ink-700">{row.tournamentsPlayed}</span>
+      <span className="justify-self-end font-mono text-ink-700">{row.tournamentsWon}</span>
+      <span className="justify-self-end font-mono text-ink-700">{row.matchesPlayed}</span>
+      <span className="justify-self-end font-mono text-ink-700">{st.wlFn(row.matchesWon, loss)}</span>
+      <span className="justify-self-end font-mono text-ink-700">{row.winRate != null ? t.stats.winRatePctFn(row.winRate) : '—'}</span>
+      <span className="justify-self-end font-mono text-ink-700">{row.score}</span>
+    </div>
+  );
+}
+
+function AdminHistoryRow({ row, t, lang }) {
+  const date = row.startsAt
+    ? new Date(row.startsAt).toLocaleDateString(lang === 'ru' ? 'ru-RU' : 'en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+    : '—';
+  const formatLabel = row.participantType === 'team' ? t.admin.create.formatTeam : t.admin.create.formatSolo;
+  const loss = Math.max(0, (row.matchesPlayed ?? 0) - (row.matchesWon ?? 0));
+  return (
+    <div className="grid grid-cols-[1.5fr_90px_90px_120px_44px_100px_64px] items-center gap-2.5 border-t border-ink-50 px-3.5 py-2.5 text-[13px] first:border-t-0 hover:bg-ink-50/60">
+      <span className="truncate text-[13.5px] font-600 text-ink-900">{row.title}</span>
+      <span className="text-ink-500">{date}</span>
+      <span className="justify-self-start rounded-full bg-ink-50 px-2.5 py-0.5 text-[11.5px] font-600 text-ink-700">{formatLabel}</span>
+      {row.teamName
+        ? <span className="justify-self-start truncate rounded-full bg-[var(--accent-soft)] px-2.5 py-0.5 text-[11.5px] font-600 text-accent">{row.teamName}</span>
+        : <span className="justify-self-start pl-2.5 text-ink-300">—</span>}
+      <span className="justify-self-start font-mono text-ink-500">{row.seed != null ? `#${row.seed}` : '—'}</span>
+      <AdminPlacementBadge rank={row.finalRank} t={t} />
+      <span className="justify-self-end font-mono text-ink-700">{t.stats.recordFn(row.matchesWon ?? 0, loss)}</span>
+    </div>
+  );
+}
+
+function UserStatsTab({ userId, t, lang }) {
+  const st = t.admin.userStats;
+  const [state, setState] = useState('loading'); // loading | ready | error
+  const [stats, setStats] = useState(null);
+  const [error, setError] = useState(null);
+  const [reloadKey, setReloadKey] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    getUserStats(userId)
+      .then((s) => { if (!cancelled) { setStats(s); setState('ready'); } })
+      .catch((e) => { if (!cancelled) { setError(apiErrorMessage(e, t)); setState('error'); } });
+    return () => { cancelled = true; };
+  }, [userId, reloadKey, t]);
+
+  const overall = stats?.overall;
+  const bySport = stats?.bySport ?? [];
+  const history = stats?.tournaments ?? [];
+  const hasStats = overall && overall.tournamentsPlayed > 0;
+
+  if (state === 'loading') return <div className="py-3 text-[13.5px] text-ink-400">{st.loading}</div>;
+  if (state === 'error') {
+    return (
+      <div className="py-3 text-[13.5px] text-red-600">
+        {error}{' '}
+        <button onClick={() => { setState('loading'); setReloadKey((k) => k + 1); }} className="font-600 underline">{st.retry}</button>
+      </div>
+    );
+  }
+  if (!hasStats) {
+    return <div className="rounded-xl border border-dashed border-ink-200 bg-white px-4 py-6 text-center text-[13px] text-ink-500">{st.emptyRow}</div>;
+  }
+
+  return (
+    <div>
+      <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+        <MiniStatTile value={overall.tournamentsPlayed} label={st.tilePlayed} />
+        <MiniStatTile value={overall.tournamentsWon} label={st.tileWon} />
+        <MiniStatTile value={overall.podiumFinishes} label={st.tilePodiums} />
+        <MiniStatTile value={overall.matchesPlayed} label={st.tileMatches} sub={t.stats.recordFn(overall.matchesWon, overall.matchesLost)} />
+        <MiniStatTile value={overall.winRate != null ? t.stats.winRatePctFn(overall.winRate) : '—'} label={st.tileWinRate} />
+        <MiniStatTile value={overall.score} label={st.tileScore} featured />
+      </div>
+
+      {bySport.length > 0 && (
+        <>
+          <div className="mb-2 mt-5 text-[13px] font-700 text-ink-700">{st.bySport}</div>
+          <div className="overflow-hidden rounded-xl border border-ink-100">
+            <div className="hidden grid-cols-[1.3fr_70px_100px_50px_70px_60px_70px_60px] gap-2.5 bg-ink-50/60 px-3.5 py-2 font-mono text-[10.5px] font-700 uppercase tracking-wide text-ink-500 sm:grid">
+              <span>{st.thSport}</span>
+              <span className="justify-self-end">{st.thRating}</span>
+              <span className="justify-self-end">{st.thTournaments}</span>
+              <span className="justify-self-end">{st.thWon}</span>
+              <span className="justify-self-end">{st.thMatches}</span>
+              <span className="justify-self-end">{st.thWL}</span>
+              <span className="justify-self-end">{st.thWinRate}</span>
+              <span className="justify-self-end">{st.thScore}</span>
+            </div>
+            {bySport.map((row) => <AdminSportRow key={row.sportId} row={row} t={t} />)}
+          </div>
+        </>
+      )}
+
+      {history.length > 0 && (
+        <>
+          <div className="mb-2 mt-5 text-[13px] font-700 text-ink-700">{st.history}</div>
+          <div className="overflow-x-auto rounded-xl border border-ink-100">
+            <div className="min-w-[620px]">
+              <div className="grid grid-cols-[1.5fr_90px_90px_120px_44px_100px_64px] gap-2.5 bg-ink-50/60 px-3.5 py-2 font-mono text-[10.5px] font-700 uppercase tracking-wide text-ink-500">
+                <span>{st.thTitle}</span><span>{st.thDate}</span><span>{st.thFormat}</span><span>{st.thTeam}</span><span>{st.thSeed}</span><span>{st.thPlacement}</span><span className="justify-self-end">{st.thRecord}</span>
+              </div>
+              {history.map((row) => <AdminHistoryRow key={row.tournamentId} row={row} t={t} lang={lang} />)}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function UserDetail({ userId, onClose }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const ud = t.admin.userDetail;
+  const [tab, setTab] = useState('profile'); // profile | registrations | statistics
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
 
@@ -658,49 +1385,73 @@ function UserDetail({ userId, onClose }) {
   const profiles = data?.profiles ?? [];
   const regs = data?.registrations ?? [];
   const lbl = 'font-mono text-[11px] uppercase tracking-wide text-ink-300';
+  const tabs = [
+    ['profile', ud.tabProfile],
+    ['registrations', ud.tabRegistrations],
+    ['statistics', ud.tabStatistics],
+  ];
 
   return (
-    <Modal title={u?.name || ud.fallbackTitle} sub={u?.email} onClose={onClose}>
+    <Modal title={u?.name || ud.fallbackTitle} sub={u?.email} onClose={onClose} maxW={tab === 'statistics' ? 'max-w-3xl' : 'max-w-lg'}>
       {!data && !error && <div className="text-[14px] text-ink-400">{t.admin.common.loading}</div>}
       {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-[13.5px] text-red-700">{error}</div>}
       {data && (
-        <div className="space-y-6">
-          <section>
-            <span className={lbl}>{ud.account}</span>
-            <div className="mt-2 grid grid-cols-2 gap-3 text-[14px]">
-              <div><div className="text-ink-400 text-[12px]">{ud.role}</div><div className="font-500 capitalize text-ink-900">{u?.role ?? '—'}</div></div>
-              <div><div className="text-ink-400 text-[12px]">{ud.joined}</div><div className="font-500 text-ink-900">{fmtDate(u?.createdAt)}</div></div>
-            </div>
-          </section>
+        <div>
+          <div className="mb-5 flex gap-1 border-b border-ink-100">
+            {tabs.map(([id, label]) => (
+              <button
+                key={id}
+                onClick={() => setTab(id)}
+                className={'-mb-px border-b-2 px-4 py-2.5 text-[13.5px] font-600 ' + (tab === id ? 'border-accent text-accent' : 'border-transparent text-ink-500 hover:text-ink-700')}>
+                {label}
+              </button>
+            ))}
+          </div>
 
-          <section className="border-t border-ink-100 pt-5">
-            <span className={lbl}>{ud.profilesFn(profiles.length)}</span>
-            <div className="mt-2 space-y-2">
-              {profiles.length === 0 && <div className="text-[13.5px] text-ink-400">{ud.noProfiles}</div>}
-              {profiles.map((p, i) => (
-                <div key={i} className="flex items-center justify-between rounded-xl border border-ink-100 px-3.5 py-2.5">
-                  <span className="text-[14px] font-600 capitalize text-ink-900">{p.sport ?? p.sportName ?? p.sportId ?? '—'}</span>
-                  <span className="font-mono text-[13.5px] text-ink-700">{p.rating != null ? p.rating : '—'}</span>
+          {tab === 'profile' && (
+            <div className="space-y-6">
+              <section>
+                <span className={lbl}>{ud.account}</span>
+                <div className="mt-2 grid grid-cols-2 gap-3 text-[14px]">
+                  <div><div className="text-ink-400 text-[12px]">{ud.role}</div><div className="font-500 capitalize text-ink-900">{u?.role ?? '—'}</div></div>
+                  <div><div className="text-ink-400 text-[12px]">{ud.joined}</div><div className="font-500 text-ink-900">{fmtDate(u?.createdAt)}</div></div>
                 </div>
-              ))}
-            </div>
-          </section>
+              </section>
 
-          <section className="border-t border-ink-100 pt-5">
-            <span className={lbl}>{ud.historyFn(regs.length)}</span>
-            <div className="mt-2 space-y-2">
-              {regs.length === 0 && <div className="text-[13.5px] text-ink-400">{ud.noRegs}</div>}
-              {regs.map((r, i) => (
-                <div key={i} className="flex items-center justify-between gap-3 rounded-xl border border-ink-100 px-3.5 py-2.5">
-                  <div className="min-w-0">
-                    <div className="truncate text-[14px] font-600 text-ink-900">{r.tournamentTitle ?? r.title ?? r.tournamentId}</div>
-                    <div className="text-[12px] text-ink-400">{fmtDate(r.startsAt)}{r.tournamentStatus ? ' · ' + (t.admin.status[r.tournamentStatus] || STATUS_LABEL[r.tournamentStatus] || r.tournamentStatus) : ''}</div>
+              <section className="border-t border-ink-100 pt-5">
+                <span className={lbl}>{ud.profilesFn(profiles.length)}</span>
+                <div className="mt-2 space-y-2">
+                  {profiles.length === 0 && <div className="text-[13.5px] text-ink-400">{ud.noProfiles}</div>}
+                  {profiles.map((p, i) => (
+                    <div key={i} className="flex items-center justify-between rounded-xl border border-ink-100 px-3.5 py-2.5">
+                      <span className="text-[14px] font-600 capitalize text-ink-900">{p.sport ?? p.sportName ?? p.sportId ?? '—'}</span>
+                      <span className="font-mono text-[13.5px] text-ink-700">{p.rating != null ? p.rating : '—'}</span>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            </div>
+          )}
+
+          {tab === 'registrations' && (
+            <section>
+              <span className={lbl}>{ud.historyFn(regs.length)}</span>
+              <div className="mt-2 space-y-2">
+                {regs.length === 0 && <div className="text-[13.5px] text-ink-400">{ud.noRegs}</div>}
+                {regs.map((r, i) => (
+                  <div key={i} className="flex items-center justify-between gap-3 rounded-xl border border-ink-100 px-3.5 py-2.5">
+                    <div className="min-w-0">
+                      <div className="truncate text-[14px] font-600 text-ink-900">{r.tournamentTitle ?? r.title ?? r.tournamentId}</div>
+                      <div className="text-[12px] text-ink-400">{fmtDate(r.startsAt)}{r.tournamentStatus ? ' · ' + (t.admin.status[r.tournamentStatus] || STATUS_LABEL[r.tournamentStatus] || r.tournamentStatus) : ''}</div>
+                    </div>
+                    <StatusDot status={r.status ?? 'registered'} />
                   </div>
-                  <StatusDot status={r.status ?? 'registered'} />
-                </div>
-              ))}
-            </div>
-          </section>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {tab === 'statistics' && <UserStatsTab userId={userId} t={t} lang={lang} />}
         </div>
       )}
     </Modal>
@@ -1011,6 +1762,11 @@ export function CreateCompetition({ setView }) {
     // Rating / age gates — backend defaults: no effective restriction.
     minRating: '0', maxRating: '100000', minAge: '0', maxAge: '120',
   });
+  // Participant format (NEW.md §10) — immutable after creation, so it's only
+  // ever picked here. `teamSize` is only sent (and only shown) for 'team'.
+  const [participantType, setParticipantType] = useState('solo');
+  const [teamSize, setTeamSize] = useState(5);
+  const isTeam = participantType === 'team';
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [apiSports, setApiSports] = useState([]);
@@ -1047,6 +1803,8 @@ export function CreateCompetition({ setView }) {
         type: entryFee > 0 ? 'paid' : 'free',
         city,
         capacity,
+        participantType,
+        ...(isTeam ? { teamSize } : {}),
         ...gates,
         startsAt: f.date ? new Date(f.date).toISOString() : new Date().toISOString(),
         entryFee,
@@ -1100,10 +1858,43 @@ export function CreateCompetition({ setView }) {
               <input type="date" value={f.date} onChange={(e) => setF({ ...f, date: e.target.value })} className={field} />
             </div>
             <div>
-              <span className={lbl}>{cr.capacityLbl}</span>
-              <input type="number" value={f.capacity} onChange={(e) => setF({ ...f, capacity: e.target.value })} placeholder={cr.capacityPlaceholder} className={field} />
+              <span className={lbl}>{isTeam ? cr.capacityTeamsLbl : cr.capacityLbl}</span>
+              <input type="number" value={f.capacity} onChange={(e) => setF({ ...f, capacity: e.target.value })} placeholder={isTeam ? cr.capacityTeamsPlaceholder : cr.capacityPlaceholder} className={field} />
             </div>
           </div>
+
+          {/* participant format — immutable after creation (NEW.md §10) */}
+          <div className="border-t border-ink-100 pt-5">
+            <h3 className="text-[15px] font-700 text-ink-900">{cr.formatSectionTitle}</h3>
+            <div className="mt-4 flex flex-wrap gap-8">
+              <div>
+                <span className={lbl}>{cr.formatLbl}</span>
+                <div className="mt-1.5 inline-flex rounded-full bg-ink-50 p-1">
+                  {['solo', 'team'].map((v) => (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => setParticipantType(v)}
+                      className={
+                        'rounded-full px-5 py-2 text-[13.5px] font-600 transition-colors ' +
+                        (participantType === v ? 'bg-white text-ink-900 shadow-sm' : 'text-ink-500 hover:text-ink-700')
+                      }>
+                      {v === 'solo' ? cr.formatSolo : cr.formatTeam}
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-1.5 max-w-[220px] text-[12.5px] leading-snug text-ink-500">{cr.formatHelper}</p>
+              </div>
+              {isTeam && (
+                <div>
+                  <span className={lbl}>{cr.teamSizeLbl}</span>
+                  <TeamSizeStepper value={teamSize} min={2} onChange={setTeamSize} />
+                  <p className="mt-1.5 text-[12.5px] text-ink-500">{cr.teamSizeHelper}</p>
+                </div>
+              )}
+            </div>
+          </div>
+
           <div>
             <span className={lbl}>{cr.priceLbl}</span>
             <input type="number" value={f.price} onChange={(e) => setF({ ...f, price: e.target.value })} placeholder={cr.pricePlaceholder} className={field} />

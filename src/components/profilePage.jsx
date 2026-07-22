@@ -8,7 +8,7 @@ import { useLang } from '../LangContext';
 import { useSession } from '../SessionContext';
 import { listSports, getProfile, getMyTournaments } from '../lib/api';
 import { useCities, cityLabel } from '../lib/cities';
-import { goToTeam } from '../lib/nav';
+import { goToTeam, goToBracket, goToStats } from '../lib/nav';
 import { placeElo } from '../lib/rank';
 import { Logo, Btn, LangSwitcher, SportTag, Pill } from './primitives';
 import { normalizeRank } from './onboarding';
@@ -78,6 +78,9 @@ function TournamentRow({ row, slugMap }) {
         <div className="truncate text-[15.5px] font-600 text-ink-900">{row.title}</div>
         <div className="mt-0.5 text-[13px] text-ink-500">{date}{place && ` · ${place}`}</div>
       </div>
+      <button onClick={() => goToBracket(row.id)} className="shrink-0 text-[13px] font-600 text-accent hover:underline">
+        {t.bracket.title}
+      </button>
       <Pill tone={row.status === 'cancelled' ? 'outline' : 'default'}>
         {t.admin.status[row.status] ?? row.status}
       </Pill>
@@ -158,10 +161,11 @@ export function ProfilePage({ onExit }) {
           {user?.picture
             ? <img src={user.picture} alt="" className="h-16 w-16 rounded-full object-cover" referrerPolicy="no-referrer" />
             : <span className="grid h-16 w-16 place-items-center rounded-full bg-accent text-[20px] font-700 text-white">{initials(name)}</span>}
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <h1 className="font-display text-[26px] font-700 leading-tight text-ink-900">{name}</h1>
             {user?.email && <div className="truncate text-[14px] text-ink-500">{user.email}</div>}
           </div>
+          <Btn variant="outline" size="sm" className="shrink-0" onClick={goToStats}>{t.stats.title}</Btn>
         </div>
 
         {state === 'loading' && (

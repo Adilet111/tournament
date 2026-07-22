@@ -119,10 +119,52 @@ export function withdrawTeamFromTournament(tournamentId, teamId) {
   return post(`/tournaments/${seg(tournamentId)}/withdraw-team`, { teamId });
 }
 
+/* GET /tournaments/:id/team-registrations — admin only (see NEW.md §13).
+   Each row carries the frozen roster snapshot. Optional `status` filters
+   registered vs withdrawn. */
+export function listTeamRegistrations(tournamentId, status) {
+  const q = status ? `?status=${seg(status)}` : '';
+  return get(`/tournaments/${seg(tournamentId)}/team-registrations${q}`);
+}
+
 /* GET /me/tournaments — the signed-in user's tournaments, split into
    { upcoming, past } arrays. `past` doubles as the match history. */
 export function getMyTournaments() {
   return get('/me/tournaments');
+}
+
+/* GET /tournaments/:id/bracket — the single-elimination bracket, grouped by
+   round (see NEW.md §15). Public — works before generation too, returning
+   `{ generated: false, entries: [], rounds: [] }`. */
+export function getBracket(tournamentId) {
+  return get(`/tournaments/${seg(tournamentId)}/bracket`);
+}
+
+/* POST /tournaments/:id/bracket — admin only; tournament must be `closed`
+   first. Freezes entries, seeds by rating, creates every round up front
+   (byes resolve immediately as walkovers). Returns the generation summary
+   { bracketSize, rounds, entries, matches, walkovers } (NEW.md §14). */
+export function generateBracket(tournamentId) {
+  return post(`/tournaments/${seg(tournamentId)}/bracket`, {});
+}
+
+/* DELETE /tournaments/:id/bracket — admin only; for late withdrawals before
+   play starts. 409 bracket_in_progress once any match has been completed. */
+export function deleteBracket(tournamentId) {
+  return del(`/tournaments/${seg(tournamentId)}/bracket`);
+}
+
+/* POST /matches/:id/result — admin only; report a match result (scores
+   optional). The winner advances into the next round automatically
+   (NEW.md §17). Immutable once reported (409 match_completed). */
+export function reportMatchResult(matchId, { winnerSlot, score1, score2 }) {
+  return post(`/matches/${seg(matchId)}/result`, { winnerSlot, score1, score2 });
+}
+
+/* GET /me/stats — the signed-in user's tournament/match statistics, fully
+   derived server-side (see NEW.md §18): { overall, bySport, tournaments }. */
+export function getMyStats() {
+  return get('/me/stats');
 }
 
 /* ------------------------------------------------------------------ admin ---
@@ -141,6 +183,12 @@ export function listAdminTournaments(status) {
    registrations } — account fields, every sport profile, tournament history. */
 export function getAdminUser(id) {
   return get(`/admin/users/${seg(id)}`);
+}
+
+/* GET /users/:id/stats — admin-only view of another user's statistics; same
+   shape as GET /me/stats (see NEW.md §18). 404 unknown user, 403 non-admin. */
+export function getUserStats(userId) {
+  return get(`/users/${seg(userId)}/stats`);
 }
 
 /* GET /admin/removed-registrations — players auto-removed when a tournament's

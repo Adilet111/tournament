@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="design_doc_mode" content="canvas">
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Bracket Panel — Rally Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+:root{--ink-900:#0f172a;--ink-700:#334155;--ink-500:#64748b;--ink-300:#cbd5e1;--ink-100:#e2e8f0;--ink-50:#f1f5f9;--accent:#1d4ed8;--accent-soft:#eff4ff}
+*{box-sizing:border-box}
+body{margin:0;font-family:'Hanken Grotesk',system-ui,sans-serif;color:var(--ink-900);background:#f8fafc}
+.mono{font-family:'Geist Mono',ui-monospace,monospace}
+.label-tag{position:absolute;top:-30px;left:0;font-size:13px;font-weight:600;color:var(--ink-500)}
+.card{background:#fff;border:1px solid var(--ink-100);border-radius:16px;padding:22px}
+.pre{width:480px}
+.h{font-size:15px;font-weight:700;margin-bottom:8px}
+.body-text{font-size:13.5px;color:var(--ink-500);line-height:1.55;margin-bottom:18px}
+.btn{border-radius:999px;padding:10px 18px;font-size:13.5px;font-weight:600;font-family:inherit;cursor:pointer;border:none;background:var(--accent);color:#fff}
+.btn[disabled]{background:var(--ink-100);color:var(--ink-500);cursor:not-allowed}
+.hint-chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--ink-500);background:var(--ink-50);padding:5px 12px;border-radius:999px;margin-left:10px}
+.summary{font-size:13px;color:var(--ink-700);background:var(--accent-soft);border:1px solid color-mix(in srgb, var(--accent) 25%, transparent);border-radius:10px;padding:10px 14px;margin-bottom:16px}
+.btn-row{display:flex;align-items:center}
+
+.gen{width:780px}
+.gen-head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{font-size:12px;font-weight:600;color:var(--ink-700);background:var(--ink-50);padding:5px 12px;border-radius:999px}
+.chip b{font-family:'Geist Mono',ui-monospace,monospace;font-weight:600}
+.ghost-red{background:none;border:none;color:#dc2626;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;padding:4px 6px}
+.ghost-red[disabled]{opacity:.45;cursor:not-allowed}
+.tooltip-wrap{position:relative}
+.tooltip{position:absolute;right:0;top:calc(100% + 8px);background:var(--ink-900);color:#fff;font-size:12px;font-weight:500;padding:8px 11px;border-radius:10px;width:200px;line-height:1.4;box-shadow:0 8px 20px rgba(15,23,42,.25);z-index:2}
+.tooltip:after{content:'';position:absolute;right:16px;bottom:100%;border:5px solid transparent;border-bottom-color:var(--ink-900)}
+
+.mini-bracket{display:flex;gap:36px}
+.round{display:flex;flex-direction:column;width:190px;flex-shrink:0}
+.round-title{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-500);margin-bottom:8px}
+.matches{display:flex;flex-direction:column;flex:1;justify-content:space-around;gap:8px}
+.m-wrap{display:flex;flex-direction:column;justify-content:center;position:relative}
+.r1 .m-wrap{height:64px}
+.r2 .m-wrap{height:136px}
+.match{background:#fff;border:1px solid var(--ink-100);border-radius:10px;overflow:hidden;position:relative}
+.match:after{content:'';position:absolute;right:-36px;top:50%;width:36px;height:1px;background:var(--ink-100)}
+.r2 .match:after{display:none}
+.p-row{display:flex;align-items:center;gap:6px;padding:6px 9px;border-bottom:1px solid var(--ink-50);font-size:12px}
+.p-row:last-child{border-bottom:none}
+.seed{font-size:10px;color:var(--ink-300);width:10px}
+.pname{flex:1;color:var(--ink-700)}
+.pname.winner{font-weight:600;color:var(--ink-900)}
+.pname.loser{color:var(--ink-300)}
+.score{font-size:11.5px;color:var(--ink-300)}
+.score.win{color:var(--accent);font-weight:700}
+.report{position:absolute;right:6px;top:50%;transform:translateY(-50%);font-size:11px;font-weight:700;background:var(--accent);color:#fff;border:none;border-radius:999px;padding:4px 10px;font-family:inherit;cursor:pointer;box-shadow:0 2px 8px rgba(29,78,216,.35)}
+.hover-note{font-size:11px;color:var(--ink-500);font-style:italic;margin-top:8px}
+</style>
+</head>
+<body>
+
+<div style="position:absolute;left:60px;top:50px" class="card pre">
+<div class="label-tag">1 — Pre-generation · registration open</div>
+<div class="h">Bracket</div>
+<p class="body-text">Close registration to generate the bracket. Seeding uses player/team ratings; byes resolve automatically.</p>
+<div class="btn-row"><button class="btn" disabled>Generate bracket</button><span class="hint-chip"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3.5" y="7" width="9" height="6.5" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg>Requires status: closed</span></div>
+</div>
+
+<div style="position:absolute;left:600px;top:50px" class="card pre">
+<div class="label-tag">2 — Pre-generation · closed</div>
+<div class="h">Bracket</div>
+<p class="body-text">Close registration to generate the bracket. Seeding uses player/team ratings; byes resolve automatically.</p>
+<div class="summary"><b class="mono">12</b> teams registered → bracket of <b class="mono">16</b>, <b class="mono">4</b> rounds, <b class="mono">4</b> byes</div>
+<button class="btn">Generate bracket</button>
+</div>
+
+<div style="position:absolute;left:60px;top:330px" class="card gen">
+<div class="label-tag">3 — Generated</div>
+<div class="gen-head">
+<div class="chips">
+<span class="chip">Bracket size <b>16</b></span>
+<span class="chip">Rounds <b>4</b></span>
+<span class="chip">Entries <b>12</b></span>
+<span class="chip">Walkovers <b>4</b></span>
+</div>
+<button class="ghost-red">Delete bracket</button>
+</div>
+<div class="mini-bracket">
+<div class="round r1">
+<div class="round-title">Round 1</div>
+<div class="matches">
+<div class="m-wrap"><div class="match">
+<div class="p-row"><span class="seed">1</span><span class="pname winner">Astana Wolves</span><span class="score win mono">3</span></div>
+<div class="p-row"><span class="seed">8</span><span class="pname loser">Riverside FC</span><span class="score mono">1</span></div>
+</div></div>
+<div class="m-wrap"><div class="match">
+<div class="p-row"><span class="seed">4</span><span class="pname">Net Cutters</span><span class="score mono">–</span></div>
+<div class="p-row"><span class="seed">5</span><span class="pname">Spoke &amp; Chain</span><span class="score mono">–</span></div>
+<button class="report">Report result</button>
+</div></div>
+<div class="m-wrap"><div class="match">
+<div class="p-row"><span class="seed">3</span><span class="pname">Pace Alliance</span><span class="score mono">–</span></div>
+<div class="p-row"><span class="seed">6</span><span class="pname">Steppe Eagles</span><span class="score mono">–</span></div>
+</div></div>
+<div class="m-wrap"><div class="match">
+<div class="p-row"><span class="seed">2</span><span class="pname winner">Highline SC</span><span class="score win mono">2</span></div>
+<div class="p-row"><span class="seed">7</span><span class="pname loser">Delta Nine</span><span class="score mono">0</span></div>
+</div></div>
+</div>
+</div>
+<div class="round r2">
+<div class="round-title">Semifinals</div>
+<div class="matches">
+<div class="m-wrap"><div class="match">
+<div class="p-row"><span class="seed">1</span><span class="pname">Astana Wolves</span><span class="score mono">–</span></div>
+<div class="p-row"><span class="seed">-</span><span class="pname" style="font-style:italic;color:var(--ink-300)">Winner of M2</span><span class="score mono">–</span></div>
+</div></div>
+<div class="m-wrap"><div class="match">
+<div class="p-row"><span class="seed">-</span><span class="pname" style="font-style:italic;color:var(--ink-300)">Winner of M3</span><span class="score mono">–</span></div>
+<div class="p-row"><span class="seed">2</span><span class="pname">Highline SC</span><span class="score mono">–</span></div>
+</div></div>
+</div>
+</div>
+</div>
+<div class="hover-note">"Report result" appears on hover of pending matches with both sides known (shown on M2).</div>
+</div>
+
+<div class="card" style="position:absolute;left:900px;top:330px;width:300px;padding-bottom:70px">
+<div class="label-tag">Delete — locked variant</div>
+<div class="tooltip-wrap" style="display:inline-block">
+<button class="ghost-red" disabled>Delete bracket</button>
+<div class="tooltip">Matches have been played — the bracket is locked.</div>
+</div>
+</div>
+
+<template id="__bundler_thumbnail"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#1d4ed8"/><text x="50" y="58" font-size="26" fill="#fff" text-anchor="middle" font-family="sans-serif">BP</text></svg></template>
+</body>
+</html>
