@@ -98,6 +98,7 @@ export function StatsPage({ onExit }) {
 
   const [state, setState] = useState('loading'); // loading | ready | error
   const [stats, setStats] = useState(null);
+  const [scoreInfoOpen, setScoreInfoOpen] = useState(false);
 
   const load = useCallback(() => {
     let cancelled = false;
@@ -171,6 +172,55 @@ export function StatsPage({ onExit }) {
               <StatTile value={overall.winRate != null ? st.winRatePctFn(overall.winRate) : '—'} label={st.tileWinRate} />
               <StatTile value={overall.score} label={st.tileScore} featured />
             </div>
+
+            <button onClick={() => setScoreInfoOpen((o) => !o)}
+              className="mt-3 inline-flex items-center gap-1.5 text-[13px] font-600 text-accent hover:underline">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="9" /><path d="M12 16v-4M12 8h.01" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              {st.scoreInfoCta}
+            </button>
+
+            {scoreInfoOpen && (
+              <div className="mt-3 rounded-2xl border border-ink-100 bg-white p-5">
+                <h3 className="font-display text-[15px] font-700 text-ink-900">{st.scoreInfoTitle}</h3>
+                <p className="mt-1 text-[13px] text-ink-500">{st.scoreInfoIntro}</p>
+                <ul className="mt-3 space-y-1.5 text-[13.5px] text-ink-700">
+                  <li className="flex items-center justify-between gap-3">
+                    <span>{st.scoreInfoParticipation}</span>
+                    <b className="shrink-0 font-mono text-ink-900">+10</b>
+                  </li>
+                  <li className="flex items-center justify-between gap-3">
+                    <span>{st.scoreInfoMatchWin}</span>
+                    <b className="shrink-0 font-mono text-ink-900">+5 {st.scoreInfoEach}</b>
+                  </li>
+                </ul>
+
+                <p className="mt-4 text-[13px] text-ink-500">{st.scoreInfoPlacementIntro}</p>
+                <ul className="mt-2 space-y-1.5 text-[13.5px] text-ink-700">
+                  <li className="flex items-center justify-between gap-3">
+                    <span>{st.champion}</span>
+                    <b className="shrink-0 font-mono text-ink-900">+50</b>
+                  </li>
+                  <li className="flex items-center justify-between gap-3">
+                    <span>{st.runnerUp}</span>
+                    <b className="shrink-0 font-mono text-ink-900">+30</b>
+                  </li>
+                  <li className="flex items-center justify-between gap-3">
+                    <span>{st.scoreInfoSemifinal}</span>
+                    <b className="shrink-0 font-mono text-ink-900">+20</b>
+                  </li>
+                  <li className="flex items-center justify-between gap-3 text-ink-400">
+                    <span>{st.scoreInfoOtherPlacement}</span>
+                    <b className="shrink-0 font-mono">+0</b>
+                  </li>
+                </ul>
+
+                <div className="mt-4 rounded-xl bg-ink-50 px-3.5 py-2.5 font-mono text-[12.5px] leading-relaxed text-ink-700">
+                  {st.scoreInfoFormula}
+                </div>
+              </div>
+            )}
 
             {bySport.length > 0 && (
               <>

@@ -501,6 +501,17 @@ export const translations = {
       runnerUp:        "Runner-up",
       emptyTitle:      "No stats yet",
       emptyBody:       "They'll appear after your first tournament bracket is played",
+
+      scoreInfoCta:            "How is this calculated?",
+      scoreInfoTitle:          "How your Rally score is calculated",
+      scoreInfoIntro:          "Added up for every tournament you enter:",
+      scoreInfoParticipation:  "Entering a bracket",
+      scoreInfoMatchWin:       "Per match won",
+      scoreInfoEach:           "each",
+      scoreInfoPlacementIntro:"Plus a placement bonus based on how you finished:",
+      scoreInfoSemifinal:      "Semifinalist (3rd)",
+      scoreInfoOtherPlacement: "Any other finish",
+      scoreInfoFormula:        "score = participation (10) + matches won × 5 + placement bonus",
     },
 
     admin: {
@@ -1441,6 +1452,17 @@ export const translations = {
       runnerUp:        "Финалист",
       emptyTitle:      "Пока нет статистики",
       emptyBody:       "Она появится после того, как сыграете свой первый турнир по сетке",
+
+      scoreInfoCta:            "Как считаются очки?",
+      scoreInfoTitle:          "Как считаются ваши очки Rally",
+      scoreInfoIntro:          "Складывается за каждый турнир, в котором вы участвовали:",
+      scoreInfoParticipation:  "Участие в сетке",
+      scoreInfoMatchWin:       "За каждую победу в матче",
+      scoreInfoEach:           "за матч",
+      scoreInfoPlacementIntro:"Плюс бонус за итоговое место:",
+      scoreInfoSemifinal:      "Полуфиналист (3-е место)",
+      scoreInfoOtherPlacement: "Любое другое место",
+      scoreInfoFormula:        "очки = участие (10) + победы в матчах × 5 + бонус за место",
     },
 
     admin: {
