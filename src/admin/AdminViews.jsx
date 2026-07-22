@@ -390,9 +390,15 @@ function ParticipantPickCard({ name, seedLabel, selected, winnerLabel, onClick }
 
 /* Static participant card for the read-only completed-match view — same
    visual language, no interaction, final score shown inline. */
-function ParticipantResultCard({ name, seedLabel, isWinner, score, winnerLabel }) {
+function ParticipantResultCard({ name, seedLabel, isWinner, score, winnerLabel, onClick }) {
+  const Comp = onClick ? 'button' : 'div';
   return (
-    <div className={'flex w-full items-center gap-3 rounded-2xl border p-3.5 ' + (isWinner ? 'border-accent bg-[var(--accent-soft)]' : 'border-ink-100')}>
+    <Comp
+      type={onClick ? 'button' : undefined}
+      onClick={onClick}
+      className={'flex w-full items-center gap-3 rounded-2xl border p-3.5 text-left ' +
+        (isWinner ? 'border-accent bg-[var(--accent-soft)]' : 'border-ink-100') +
+        (onClick ? ' cursor-pointer transition-colors hover:border-ink-300' : '')}>
       <span className={'grid h-9 w-9 shrink-0 place-items-center rounded-[10px] font-mono text-[12px] font-700 ' + (isWinner ? 'bg-white text-accent' : 'bg-ink-50 text-ink-300')}>
         {initials(name)}
       </span>
@@ -408,7 +414,7 @@ function ParticipantResultCard({ name, seedLabel, isWinner, score, winnerLabel }
       <span className={'shrink-0 font-mono text-[18px] font-600 ' + (isWinner ? 'text-accent' : 'ml-auto text-ink-300')}>
         {score ?? '–'}
       </span>
-    </div>
+    </Comp>
   );
 }
 
@@ -437,6 +443,7 @@ function ReportResultModal({ match, roundLabel, entryById, onClose, onReported }
   const [score2, setScore2] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+  const [viewUser, setViewUser] = useState(null); // userId | null
 
   const p1 = match.participants.find((p) => p.slot === 1);
   const p2 = match.participants.find((p) => p.slot === 2);
@@ -446,6 +453,11 @@ function ReportResultModal({ match, roundLabel, entryById, onClose, onReported }
   const name2 = p2?.displayName ?? e2?.displayName ?? '—';
   const seedLabel1 = e1?.seed != null ? bp.seedFn(e1.seed) : '';
   const seedLabel2 = e2?.seed != null ? bp.seedFn(e2.seed) : '';
+  // Bracket entries are frozen from registrations at generation time and
+  // should carry the same userId; defensive fallback in case the field name
+  // differs from what's assumed here.
+  const userId1 = p1?.userId ?? e1?.userId ?? e1?.user?.id ?? null;
+  const userId2 = p2?.userId ?? e2?.userId ?? e2?.user?.id ?? null;
 
   const submit = async () => {
     if (!winnerSlot || busy) return;
@@ -477,9 +489,13 @@ function ReportResultModal({ match, roundLabel, entryById, onClose, onReported }
             {bp.completedFn(playedDate)}
           </span>
         )}
-        <ParticipantResultCard name={name1} seedLabel={seedLabel1} isWinner={winner === 1} score={p1?.score} winnerLabel={bp.winnerPill} />
+        <ParticipantResultCard name={name1} seedLabel={seedLabel1} isWinner={winner === 1} score={p1?.score} winnerLabel={bp.winnerPill}
+          onClick={userId1 ? () => setViewUser(userId1) : undefined} />
         <VsDivider label={bp.vsWord} />
-        <ParticipantResultCard name={name2} seedLabel={seedLabel2} isWinner={winner === 2} score={p2?.score} winnerLabel={bp.winnerPill} />
+        <ParticipantResultCard name={name2} seedLabel={seedLabel2} isWinner={winner === 2} score={p2?.score} winnerLabel={bp.winnerPill}
+          onClick={userId2 ? () => setViewUser(userId2) : undefined} />
+
+        {viewUser && <UserDetail userId={viewUser} onClose={() => setViewUser(null)} />}
       </Modal>
     );
   }
