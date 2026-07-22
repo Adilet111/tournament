@@ -413,12 +413,11 @@ function ParticipantResultCard({ name, seedLabel, isWinner, score, winnerLabel, 
         {score ?? '–'}
       </span>
       {onAdjust && (
-        <button type="button" onClick={onAdjust}
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-ink-100 px-2.5 py-1.5 text-[11.5px] font-600 text-ink-500 hover:border-ink-300 hover:bg-white hover:text-ink-900">
-          <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.6">
+        <button type="button" onClick={onAdjust} title={adjustLabel}
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-ink-100 text-ink-500 hover:border-ink-300 hover:bg-white hover:text-ink-900">
+          <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.6">
             <path d="M12.5 4.5l3 3L6 17H3v-3z" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
-          {adjustLabel}
         </button>
       )}
     </div>
@@ -561,19 +560,6 @@ function ReportResultModal({ match, roundLabel, entryById, sportSlug, onClose, o
         <ParticipantResultCard name={name2} seedLabel={seedLabel2} isWinner={winner === 2} score={p2?.score} winnerLabel={bp.winnerPill}
           onAdjust={userId2 && sportSlug ? () => setAdjustFor({ userId: userId2, name: name2, isWinner: winner === 2 }) : undefined}
           adjustLabel={bp.adjustRating} />
-
-        {/* TEMP DIAGNOSTIC — remove once the bracket API's user-id field is confirmed.
-            The adjust-rating button needs both a sport slug and a userId per
-            participant; if either is missing it hides itself silently, so this
-            surfaces exactly what's missing and what raw fields ARE present. */}
-        {(!sportSlug || !userId1 || !userId2) && (
-          <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-[11.5px] leading-relaxed text-amber-800">
-            <p className="font-700">Rating-adjust debug info:</p>
-            <p>sportSlug: {sportSlug ? `"${sportSlug}"` : '(empty)'}</p>
-            <p>userId1: {userId1 ?? '(none)'} — p1 keys: {p1 ? Object.keys(p1).join(', ') : '(no p1)'} — entry1 keys: {e1 ? Object.keys(e1).join(', ') : '(no e1)'}</p>
-            <p>userId2: {userId2 ?? '(none)'} — p2 keys: {p2 ? Object.keys(p2).join(', ') : '(no p2)'} — entry2 keys: {e2 ? Object.keys(e2).join(', ') : '(no e2)'}</p>
-          </div>
-        )}
 
         {adjustFor && (
           <AdjustRatingModal
